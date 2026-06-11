@@ -1,0 +1,24 @@
+# wikimem
+.wikimem-cache/
+node_modules/
+
+# WikiMem test vault personal data
+my-wiki/raw/
+tools/agentgrid/app/release/
+
+packages/web/.next/
+*.pack
+
+# macOS metadata
+**/.DS_Store
+
+# Ephemeral harness state (never commit)
+.claude/worktrees/
+.claude/backups/
+.claude/scheduled_tasks.lock
+.claude/vp-signals/*.done
+.claude/vp-signals/*.needs-qa
+.claude/vp-signals/*.migrating
+
+# Obsidian temp files
+vault/Untitled*.base

@@ -1,20 +1,41 @@
 {
   "dsip": "0.1",
   "product": "acorn",
-  "description": "acorn's Darwin Self-Improvement Protocol contract — how this product-surface employee harness gets better over time (CP123). Deterministic half is $0/tokenless; Claude half lights when CLAUDE_CODE_OAUTH_TOKEN is set (chairman checklist).",
-  "levels": ["agent"],
+  "description": "acorn's Darwin Self-Improvement Protocol contract \u2014 how this product-surface employee harness gets better over time (CP123). Deterministic half is $0/tokenless; Claude half lights when CLAUDE_CODE_OAUTH_TOKEN is set (chairman checklist).",
+  "levels": [
+    "agent"
+  ],
   "loop": {
-    "cadence": "nightly (armed in Wave B/E; dispatch-only until then)",
+    "cadence": "nightly",
     "runner": "workflows/rsi.workflow.js (deterministic) + claude -p (when token lands)",
-    "steps": ["refresh-brain", "re-verify-tool-matrix", "run-eval-pyramid", "propose", "test-gate", "commit"]
+    "steps": [
+      "refresh-brain",
+      "re-verify-tool-matrix",
+      "run-eval-pyramid",
+      "propose",
+      "validate",
+      "ship"
+    ]
   },
-  "selection": "eval-gated",
+  "selection": "performance",
   "eval": {
     "rubric": "eval/ (Hamel L1 assertions + L2 behavior + L3 trajectory; golden tasks from brain/BATTLE-TESTED-SCENARIOS.md)",
     "gate": "acceptance-test-green && no-regression",
     "noSelfGrading": true
   },
-  "snapback": { "granularity": ["component", "repo"], "vcs": "git" },
-  "externalIntelligence": { "enabled": true, "source": "vertical ecosystem watch (changelogs, issues, X) per brain/TOOL-MATRIX.md" },
-  "relatedHarnesses": { "openEndedness": "github.com/naman10parikh/darwin (DSIP origin)", "hub": "github.com/naman10parikh/Energy (CP123 control surface: audit/cp123/)" }
+  "snapback": {
+    "granularity": [
+      "component",
+      "repo"
+    ],
+    "vcs": "git"
+  },
+  "externalIntelligence": {
+    "enabled": true,
+    "source": "vertical ecosystem watch (changelogs, issues, X) per brain/TOOL-MATRIX.md"
+  },
+  "relatedHarnesses": {
+    "openEndedness": "github.com/naman10parikh/darwin (DSIP origin)",
+    "hub": "github.com/naman10parikh/Energy (CP123 control surface: audit/cp123/)"
+  }
 }

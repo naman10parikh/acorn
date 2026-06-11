@@ -22,3 +22,6 @@ packages/web/.next/
 
 # Obsidian temp files
 vault/Untitled*.base
+
+.env
+.env.*

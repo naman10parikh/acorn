@@ -166,7 +166,6 @@ const isMain =
   typeof process !== "undefined" &&
   Array.isArray(process.argv) &&
   process.argv[1] !== undefined &&
-  // @ts-expect-error import.meta.url is available under ES modules
   import.meta.url === `file://${process.argv[1]}`;
 
 if (isMain) {

@@ -1,0 +1,47 @@
+{
+  "name": "acorn",
+  "version": "0.1.0",
+  "description": "The database employee — schema, migrations, RLS, pgvector, and tenant isolation that survive production.",
+  "type": "module",
+  "bin": {
+    "acorn": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ai",
+    "claude",
+    "agent",
+    "database",
+    "postgres",
+    "supabase",
+    "rls",
+    "migrations",
+    "pgvector",
+    "dev-tools"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build && pnpm test"
+  },
+  "dependencies": {
+    "chalk": "5.6.0",
+    "commander": "12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

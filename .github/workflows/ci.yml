@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  harness-structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Harness skeleton present
+        run: |
+          set -e
+          for f in identity/SOUL.md brain HARNESS-OVERRIDES.md MASTER-TODOS.md IMPLEMENTATION-NOTES.md dsip.json; do
+            [ -e "$f" ] || { echo "MISSING: $f"; exit 1; }
+          done
+          echo "harness skeleton OK"
+      - name: Secret scan (no real keys in tree)
+        run: |
+          set -e
+          if grep -rInE 'sk-ant-[A-Za-z0-9_-]{20,}|sk_live_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|xox[bap]-' \
+               --exclude-dir=.git --exclude-dir=node_modules . ; then
+            echo "::error::potential real secret committed"; exit 1
+          fi
+          echo "secret scan clean"
+
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect runtime
+        id: rt
+        run: |
+          if [ -f package.json ]; then echo "armed=true" >> "$GITHUB_OUTPUT"; else echo "armed=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: pnpm/action-setup@v4
+        if: steps.rt.outputs.armed == 'true'
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        if: steps.rt.outputs.armed == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install + build + test (red-blocking once code exists)
+        if: steps.rt.outputs.armed == 'true'
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm build
+          pnpm test
+      - name: Skeleton phase
+        if: steps.rt.outputs.armed == 'false'
+        run: echo "skeleton phase — build gate auto-arms when package.json lands (CP123 Wave B)"

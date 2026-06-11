@@ -1,0 +1,20 @@
+name: acorn RSI
+# CP123: dispatch-only until the RSI engine (workflows/rsi.workflow.js + eval gate) is built in Wave B/E.
+# The Claude half additionally needs CLAUDE_CODE_OAUTH_TOKEN (chairman checklist, D8). Guarded = always green.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rsi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Engine guard
+        run: |
+          if [ ! -f workflows/rsi.workflow.js ]; then
+            echo "RSI engine not built yet (CP123 cluster E) — exiting green."; exit 0
+          fi
+          echo "engine present — deterministic half would run here (wired in cluster E)"

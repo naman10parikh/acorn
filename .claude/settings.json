@@ -1,0 +1,17 @@
+{
+  "$comment": "acorn (CP123 B4) — DB-aware hooks layered ON TOP of the inherited generic harness hooks (.claude/hooks/*). These two matchers are acorn-authored and enforce the house rules at the repo boundary: (1) block `drizzle-kit push` against a non-dev DATABASE_URL [brain/OPINIONS.md §Migrations, SCENARIO #5], (2) lint staged *.sql for the 5 outage-makers [brain/KNOWN-PITFALLS.md P10-P15, EXPERTISE-MAP §3d 'acorn IS that automation'].",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/block-prod-push.sh\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

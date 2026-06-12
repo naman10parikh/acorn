@@ -1,0 +1,8 @@
+{
+  "_comment": "Committed deterministic test embedding fixture (E1 / G11 / PLAN Q7). acorn STORES + SEARCHES vectors; embedding GENERATION is app code, NOT acorn's (TOOL-MATRIX §7). Committing a fixed vector keeps the pgvector golden task (G11) deterministic + free + secret-less — no live OPENAI_API_KEY. 1536-dim (text-embedding-3-small shape) so the halfvec(1536) path is exercised; values are a fixed deterministic ramp, not a real embedding (the assertion is about column type + index, not semantic quality).",
+  "model": "text-embedding-3-small",
+  "dim": 1536,
+  "note": "vector is generated deterministically by eval.py from a seed when needed; this header records the shape + provenance so the golden task never reaches for a live embeddings API.",
+  "seed": 42,
+  "sample_first_8": [0.0, 0.0006514657980456026, 0.0013029315960912052, 0.001954397394136808, 0.0026058631921824104, 0.003257328990228013, 0.0039087947882736155, 0.004560260586319218]
+}

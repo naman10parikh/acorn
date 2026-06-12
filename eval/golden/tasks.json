@@ -1,0 +1,161 @@
+{
+  "_comment": "acorn golden-task manifest (E1). Each task is a real BATTLE-TESTED-SCENARIOS incident turned into a binary assertion. `hamel` = L1 (structural, $0, no DB) | L2 (behavioral) | L1+L2. `ci_blocking` gates merge. `needs_db` = requires a live Postgres (CI's supabase/postgres service; locally → skip-with-precondition, NEVER a fake pass). `kind` selects the runner check in eval.py. Mapped to PLAN §6 G1-G15.",
+  "tasks": [
+    {
+      "id": "G1",
+      "title": "THE acceptance task — acorn schema \"<helpdesk brief>\" → applied + RLS-tested",
+      "scenario": "PLAN §5 acceptance",
+      "asserts": "tenancy chosen + named · migrations apply · RLS on all tables · tested as authenticated · conn contract",
+      "hamel": "L2",
+      "ci_blocking": true,
+      "needs_db": true,
+      "kind": "schema_flow",
+      "brief": "a multi-tenant helpdesk: orgs have members; members file tickets; tickets have messages",
+      "expect_tenancy": "shared-schema",
+      "expect_tables_min": 4
+    },
+    {
+      "id": "G2",
+      "title": "RLS missing on a migration-created table (CVE-2025-48757)",
+      "scenario": "SCENARIO #1",
+      "asserts": "acorn rls lint flags the no-RLS table (P1); anon SELECT returns 0 rows (DB)",
+      "hamel": "L1+L2",
+      "ci_blocking": true,
+      "needs_db": true,
+      "kind": "rls_lint_flags",
+      "fixture": "no-rls.sql",
+      "expect_rule": "P1"
+    },
+    {
+      "id": "G3",
+      "title": "Agent 'list tickets' must not exfiltrate via the lethal trifecta",
+      "scenario": "SCENARIO #2",
+      "asserts": "the agent-DB profile uses a non-service_role role; a planted read-X-write-Y row causes no second-table write",
+      "hamel": "L2",
+      "ci_blocking": true,
+      "needs_db": true,
+      "kind": "agent_trifecta"
+    },
+    {
+      "id": "G4",
+      "title": "Recursive RLS policy 500s in prod",
+      "scenario": "SCENARIO #3",
+      "asserts": "acorn rls lint flags the recursive-policy risk (P4) and the fix names a SECURITY DEFINER helper",
+      "hamel": "L1+L2",
+      "ci_blocking": true,
+      "needs_db": false,
+      "kind": "recursive_rls"
+    },
+    {
+      "id": "G5",
+      "title": "One-line CHECK locks 84M rows for 4h12m",
+      "scenario": "SCENARIO #4",
+      "asserts": "acorn migration safe rewrites bare ADD CONSTRAINT CHECK/SET NOT NULL/ADD FK → NOT VALID+VALIDATE + injects lock_timeout; a bare AccessExclusive op is flagged by the lint",
+      "hamel": "L1",
+      "ci_blocking": true,
+      "needs_db": false,
+      "kind": "migration_safe_rewrite",
+      "fixture": "bare-check.sql"
+    },
+    {
+      "id": "G6",
+      "title": "drizzle-kit rename → DROP+ADD data loss",
+      "scenario": "SCENARIO #5",
+      "asserts": "the safe-rewrite of a RENAME never emits a DROP+ADD pair (data preserved via an expand/backfill scaffold); the prod-push hook blocks drizzle-kit push vs non-dev URL",
+      "hamel": "L1+L2",
+      "ci_blocking": true,
+      "needs_db": false,
+      "kind": "rename_no_drop_add"
+    },
+    {
+      "id": "G7",
+      "title": "Cross-provider restore re-runs all migrations + collides",
+      "scenario": "SCENARIO #6",
+      "asserts": "after a restore + ledger-backfill, a re-apply reports 'no migrations to apply' (0 collisions) — the idempotency assertion",
+      "hamel": "L2",
+      "ci_blocking": true,
+      "needs_db": true,
+      "kind": "idempotent_reapply"
+    },
+    {
+      "id": "G8",
+      "title": "'Undo the last 10 minutes' — PITR/Time-Travel",
+      "scenario": "SCENARIO #7",
+      "asserts": "acorn backup plan checks the Supabase PITR add-on / emits a Neon branch-at-timestamp plan; states the real recoverable window",
+      "hamel": "L1",
+      "ci_blocking": false,
+      "needs_db": false,
+      "kind": "backup_plan"
+    },
+    {
+      "id": "G9",
+      "title": "Agent provisions its own branch, never touches prod",
+      "scenario": "SCENARIO #8",
+      "asserts": "acorn provision creates a branch (not prod); the agent cred cannot write to the prod project (refused)",
+      "hamel": "L2",
+      "ci_blocking": true,
+      "needs_db": true,
+      "kind": "provision_branch_no_prod"
+    },
+    {
+      "id": "G10",
+      "title": "Multi-tenant vector search over-filters",
+      "scenario": "SCENARIO #9",
+      "asserts": "acorn vector plan enables hnsw.iterative_scan; a tenant-filtered ANN returns the full LIMIT when matches exist (DB)",
+      "hamel": "L2",
+      "ci_blocking": true,
+      "needs_db": true,
+      "kind": "vector_iterative_scan"
+    },
+    {
+      "id": "G11",
+      "title": "Embedding table balloons RAM; HNSW won't fit",
+      "scenario": "SCENARIO #10",
+      "asserts": "acorn vector plan defaults halfvec(1536) for ≥1536-dim; the committed fixture vector keeps it deterministic + free (no OPENAI_API_KEY)",
+      "hamel": "L1+L2",
+      "ci_blocking": true,
+      "needs_db": false,
+      "kind": "vector_halfvec"
+    },
+    {
+      "id": "G12",
+      "title": "Serverless 'prepared statement already exists'",
+      "scenario": "SCENARIO #11",
+      "asserts": "acorn conn gen sets prepare:false on the :6543 pooled URL + a :5432 direct URL",
+      "hamel": "L1",
+      "ci_blocking": true,
+      "needs_db": false,
+      "kind": "conn_two_string"
+    },
+    {
+      "id": "G13",
+      "title": "'Max client connections reached' under spike",
+      "scenario": "SCENARIO #12",
+      "asserts": "acorn conn gen sets a per-instance connection_limit≈1 + transaction mode for serverless",
+      "hamel": "L1",
+      "ci_blocking": false,
+      "needs_db": false,
+      "kind": "conn_serverless_limit"
+    },
+    {
+      "id": "G14",
+      "title": "Clerk RLS denies everything (missing ::text)",
+      "scenario": "SCENARIO B2",
+      "asserts": "acorn rls gen --auth clerk emits (select auth.uid())::text = <col>; a Clerk user reads exactly their rows (DB)",
+      "hamel": "L1+L2",
+      "ci_blocking": true,
+      "needs_db": false,
+      "kind": "clerk_text_cast"
+    },
+    {
+      "id": "G15",
+      "title": "Currency probe — uuidv7() not on PG17 Supabase",
+      "scenario": "PITFALL P34, GAPS B1",
+      "asserts": "acorn doctor feature-detects; acorn schema falls back to gen_random_uuid() on PG<18, never hard-codes uuidv7()",
+      "hamel": "L1",
+      "ci_blocking": true,
+      "needs_db": false,
+      "kind": "uuid_feature_detect"
+    }
+  ]
+}

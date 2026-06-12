@@ -23,5 +23,9 @@ packages/web/.next/
 # Obsidian temp files
 vault/Untitled*.base
 
+# acorn generated artifacts (created at acceptance/apply time — never committed)
+migrations/
+eval/_tmp_*.sql
+
 .env
 .env.*

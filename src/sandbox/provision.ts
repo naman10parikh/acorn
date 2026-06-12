@@ -113,14 +113,19 @@ export function runRlsAsRole(
   probeSql: string,
   opts?: { jwtSub?: string; devOverride?: boolean },
 ): SqlRunResult {
-  const claims = role === "authenticated" && opts?.jwtSub ? opts.jwtSub : "";
-  // Build the role-scoped probe. The set_config of request.jwt.claims lets Supabase's auth.uid() resolve to
-  // the test subject; for anon there are no claims. BEGIN/ROLLBACK keeps it side-effect-free (inspection).
+  const sub = role === "authenticated" && opts?.jwtSub ? opts.jwtSub : "";
+  // Build the role-scoped probe. Supabase's auth.uid() resolves the JWT subject from a session GUC — but the
+  // GUC NAME differs across supabase/postgres image versions: some read the per-claim `request.jwt.claim.sub`
+  // (e.g. 15.8.1.x: `current_setting('request.jwt.claim.sub')`), others the JSON-blob `request.jwt.claims`
+  // (`->>'sub'`). We set BOTH (transaction-local) so auth.uid() resolves regardless of the image. Verified on
+  // supabase/postgres:15.8.1.135 (its auth.uid() reads request.jwt.claim.sub). For anon there are no claims.
+  // BEGIN/ROLLBACK keeps it side-effect-free (read-only-at-role by construction).
+  const subEsc = sub.replace(/'/g, "''");
+  const claimsJson = JSON.stringify({ sub }).replace(/'/g, "''");
   const wrapped = [
     "BEGIN;",
-    claims
-      ? `SELECT set_config('request.jwt.claims', '${JSON.stringify({ sub: claims }).replace(/'/g, "''")}', true);`
-      : "-- anon: no jwt claims",
+    sub ? `SELECT set_config('request.jwt.claim.sub', '${subEsc}', true);` : "-- anon: no jwt claim.sub",
+    sub ? `SELECT set_config('request.jwt.claims', '${claimsJson}', true);` : "-- anon: no jwt claims blob",
     `SET LOCAL ROLE ${role};`,
     probeSql.trim().endsWith(";") ? probeSql.trim() : probeSql.trim() + ";",
     "ROLLBACK;",

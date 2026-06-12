@@ -1,0 +1,90 @@
+name: acceptance
+# CP123 E4 — THE merge-gating acceptance test (PLAN §5 / HARNESS-OVERRIDES "Acceptance test").
+# `acorn schema "<helpdesk brief>"` on a fresh Postgres → migrations applied + RLS verified by tests AS THE
+# UN-PRIVILEGED ROLE. The CI engine is `supabase/postgres` (identical engine + RLS semantics to hosted
+# Supabase, free + reproducible); the ONE hosted-Supabase run is the Wave-V live evidence, not every push.
+# ZERO secrets (containerized PG) — the Karpathy-simplicity design choice (PLAN §8): the merge gate needs no
+# chairman-provisioned token. acorn feature-detects uuidv7/pgvector at runtime against this PG.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  acorn-schema-acceptance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: supabase/postgres:15.8.1 # pinned; identical engine to hosted Supabase
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The branch/dev DB acorn applies to. prodGuard ALLOWS @localhost (ephemeral); it would REFUSE a prod URL.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql (acorn talks to Postgres via the system client — zero npm DB dep)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Set up Python (the eval pyramid is stdlib Python)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install + build
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm build
+
+      # ── THE acceptance command (verbatim, PLAN §5) — generate → apply → verify RLS as the un-privileged role ──
+      - name: acorn schema — apply + verify RLS (run 1)
+        run: |
+          node dist/index.js schema "a multi-tenant helpdesk: orgs have members; members file tickets; tickets have messages" --provider postgres --apply --verify-rls
+
+      # ── PLAN §5 step 2 — idempotency: a SECOND --apply must report "no migrations to apply" (0 collisions, G7) ──
+      - name: acorn schema — idempotent re-run (must report "no migrations to apply")
+        run: |
+          OUT=$(node dist/index.js schema "a multi-tenant helpdesk: orgs have members; members file tickets; tickets have messages" --provider postgres --apply --verify-rls)
+          echo "$OUT"
+          echo "$OUT" | grep -q "no migrations to apply" || { echo "::error::idempotency assertion failed — the second --apply did not report 'no migrations to apply'"; exit 1; }
+
+      # ── PLAN §5 step 3 — PK house-style feature-detect (G15): doctor reports PG major + the uuidv7 choice ──
+      - name: acorn doctor — PK feature-detect (PG major + uuidv7 availability)
+        run: node dist/index.js doctor --json
+
+      # ── RLS coverage — every public.* table RLS-enabled + the gated block (0 error-severity violations) ──
+      - name: acorn rls lint migrations/ — 0 violations
+        run: node dist/index.js rls lint migrations/ --json
+
+      # ── The eval pyramid (golden tasks incl. G1, Pass^k k>=3) — red-blocking. The needs-DB tasks run for ──
+      # ── REAL here (DATABASE_URL points at the supabase/postgres service), not skipped. ──
+      - name: eval pyramid — golden tasks Pass^k (red-blocking)
+        run: python eval/eval.py --pass-k 3
+
+      # ── L1 immune system on its own (no-DB structural assertions) — a fast, independent gate ──
+      - name: eval pyramid — L1 house rules (no DB)
+        run: python eval/eval.py --l1-only
+
+      # ── L3 trajectory-judge calibration (secret-less κ self-test) ──
+      - name: L3 judge — calibration self-test (Cohen's kappa, no secret)
+        run: python eval/judge.py --selftest

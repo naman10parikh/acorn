@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "name": "acorn",
+  "display_name": "acorn — The Database Employee",
+  "description": "The Energy fleet's database domain-expert. Designs multi-tenant schemas, ships zero-downtime migrations (expand→migrate→contract), writes and TESTS RLS policies as the un-privileged role, plans pgvector RAG + PITR, and operates a database safely as an agent (branch/dev only, rows untrusted). Boundary: schema / migrations / RLS / data-layer ONLY — never app code. Powered by Energy.",
+  "version": "0.1.0",
+  "author": "Energy fleet",
+  "license": "MIT",
+  "repository": "https://github.com/naman10parikh/acorn",
+  "homepage": "https://github.com/naman10parikh/acorn/blob/main/AGENTS.md",
+  "keywords": [
+    "claude-code",
+    "database",
+    "postgres",
+    "supabase",
+    "neon",
+    "rls",
+    "migrations",
+    "pgvector",
+    "agent-native",
+    "energy"
+  ],
+  "bin": {
+    "acorn": "./dist/index.js"
+  },
+  "commands": "./.claude/commands",
+  "agents": "./.claude/agents",
+  "mcpServers": "./.mcp.json",
+  "mcp_servers": [
+    {
+      "name": "acorn",
+      "description": "acorn's own MCP server — the 12 database-vertical tools (acorn_schema / acorn_rls_lint / acorn_migration_safe / acorn_vector_plan / …) over stdio. Inspect-style tools default to a read-only-at-role, branch/dev-only connection and treat returned rows as untrusted.",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["dist/mcp/server.js"],
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL}"
+      }
+    }
+  ],
+  "skills": [
+    "./skills/design-multitenant-schema/SKILL.md",
+    "./skills/harden-rls/SKILL.md",
+    "./skills/zero-downtime-migration/SKILL.md",
+    "./skills/pgvector-rag/SKILL.md",
+    "./skills/agent-db-safety/SKILL.md"
+  ],
+  "sub_agents": [
+    "./.claude/agents/rls-auditor.md",
+    "./.claude/agents/migration-safety-reviewer.md"
+  ],
+  "hooks": "./.claude/settings.json",
+  "hook_scripts": [
+    "./hooks/block-prod-push.sh",
+    "./hooks/lint-staged-sql.sh"
+  ],
+  "capabilities": {
+    "tools": [
+      {
+        "name": "acorn_schema",
+        "description": "THE acceptance command — a one-line product brief → tenancy decision + migrations + RLS policies + typed schema, applied to a fresh ephemeral DB with RLS verified by tests as the un-privileged role.",
+        "when_to_use": "When you need a production-safe multi-tenant Postgres schema from a brief and want migrations + RLS proven, not just generated."
+      },
+      {
+        "name": "acorn_rls_lint",
+        "description": "Flag every public.* table without RLS, unwrapped auth.uid(), missing WITH CHECK, recursive-policy risk, and missing predicate index (P1-P9). Deterministic SQL-AST/regex — no LLM.",
+        "when_to_use": "Before shipping any migration that creates a table, to catch the CVE-2025-48757 class of RLS gaps."
+      },
+      {
+        "name": "acorn_migration_safe",
+        "description": "Rewrite unsafe DDL into the safe form — NOT VALID+VALIDATE, CONCURRENTLY, injected SET lock_timeout, expand/contract scaffold for renames (the 84M-row/4h12m → 42min/$0 fix).",
+        "when_to_use": "Before applying any migration with a CHECK/NOT NULL/FK/ALTER TYPE/CREATE INDEX/RENAME/DROP on a non-trivial table."
+      }
+    ]
+  },
+  "install_instructions": "1. Install deps + build: pnpm install --frozen-lockfile && pnpm build  2. Add this plugin to Claude Code: Settings → Plugins → Add local plugin → select this directory.  3. The acorn CLI (`acorn --help`), the 12 MCP tools, the 5 skills, the 2 sub-agents (rls-auditor, migration-safety-reviewer), and the DB-safety hooks are now available. Boundary: acorn owns schema/migrations/RLS/data-layer ONLY — not app code."
+}

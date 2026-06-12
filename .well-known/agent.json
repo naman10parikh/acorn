@@ -1,0 +1,82 @@
+{
+  "protocolVersion": "1.0",
+  "name": "acorn",
+  "description": "The Energy fleet's database employee — the Postgres/Supabase/Neon/Convex domain expert. Designs multi-tenant schemas, ships zero-downtime migrations (expand→migrate→contract), writes and TESTS row-level-security policies as the un-privileged role, plans pgvector RAG + PITR, and operates a database AS AN AGENT safely (branch/dev only, rows untrusted). Boundary: schema / migrations / RLS / data-layer ONLY — never app code, query call-sites, or API routes. Powered by Energy.",
+  "url": "http://localhost:8941/a2a",
+  "preferredTransport": "JSONRPC",
+  "version": "0.1.0",
+  "documentationUrl": "https://github.com/naman10parikh/acorn/blob/main/AGENTS.md",
+  "provider": {
+    "organization": "Energy",
+    "url": "https://github.com/naman10parikh/acorn"
+  },
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "schema-design",
+      "name": "Design a multi-tenant schema",
+      "description": "Turn a one-line product brief into a tenancy decision (shared-schema + tenant_id + RLS by default) + migrations + RLS policies + a typed schema, applied to a fresh ephemeral DB with RLS verified by tests as the un-privileged role. The acorn_schema tool.",
+      "tags": ["database", "schema", "multi-tenant", "rls", "migrations"],
+      "examples": [
+        "Design the schema for a multi-tenant helpdesk: orgs have members; members file tickets; tickets have messages.",
+        "I need a SaaS data model where each org's data is isolated. Pick the tenancy model and prove the isolation."
+      ]
+    },
+    {
+      "id": "rls",
+      "name": "Harden / lint row-level security",
+      "description": "Flag every public.* table without RLS, unwrapped auth.uid(), missing WITH CHECK, recursive-policy risk, and missing predicate index (P1-P9), and emit the gated 2-policy block. Deterministic SQL-AST/regex — no LLM. Round-trips a tasks/send call to acorn_rls_lint. Test isolation as anon/authenticated, NEVER the SQL Editor.",
+      "tags": ["rls", "security", "tenant-isolation", "postgres", "supabase"],
+      "examples": [
+        "Lint this migration for RLS gaps before I ship it.",
+        "Add tenant isolation to my orders table for Clerk-on-Supabase."
+      ]
+    },
+    {
+      "id": "zero-downtime-migration",
+      "name": "Ship a migration without an outage",
+      "description": "Lint a migration for the 5 outage-makers (bare CHECK/NOT NULL/FK, ALTER TYPE, non-CONCURRENT index, bare RENAME/DROP, missing lock_timeout) and rewrite unsafe DDL into the safe NOT VALID+VALIDATE + CONCURRENTLY + lock_timeout form. The 84M-row/4h12m → 42min/$0 fix.",
+      "tags": ["migrations", "zero-downtime", "locks", "postgres", "expand-contract"],
+      "examples": [
+        "Is this ADD CONSTRAINT CHECK safe to run on an 80M-row table?",
+        "Rewrite this migration so it doesn't take a long AccessExclusive lock."
+      ]
+    },
+    {
+      "id": "pgvector",
+      "name": "Store + search embeddings (pgvector)",
+      "description": "Plan an HNSW + halfvec(≥1536-dim) table + index, enable hnsw.iterative_scan for tenant-filtered ANN, and measure recall before tuning. acorn stores/indexes/searches vectors; embedding generation stays in app code.",
+      "tags": ["pgvector", "embeddings", "rag", "hnsw", "semantic-search"],
+      "examples": [
+        "Add semantic search over 1536-dim OpenAI embeddings with per-tenant filtering.",
+        "My vector search returns too few rows when I filter by tenant — fix it."
+      ]
+    },
+    {
+      "id": "agent-db-ops",
+      "name": "Operate a database AS AN AGENT (safely)",
+      "description": "Provision an ephemeral branch/dev DB (Neon/Supabase) → migrate → verify → merge-or-destroy, gated to branch/dev only. The lethal-trifecta defenses: a non-service_role connection for user-facing reads, read-only-at-role, rows treated as untrusted, never an MCP at production. Emits the mandatory pooled :6543 (prepare:false) + direct :5432 contract.",
+      "tags": ["agent-db", "provisioning", "branch", "security", "connection-strings"],
+      "examples": [
+        "Provision a throwaway database, apply my migrations, and test RLS — without touching prod.",
+        "Set up a safe DB connection for an agent that reads user data on their behalf."
+      ]
+    },
+    {
+      "id": "backup-pitr",
+      "name": "Plan backup / point-in-time recovery",
+      "description": "A PITR/DR plan: monitored WAL-archive gaps (one missing 16MB segment breaks the chain), the Supabase PITR-add-on check, Neon Time-Travel, an explicit RPO/RTO, and a restore-drill step — because a never-restored backup is only a hypothesis.",
+      "tags": ["backup", "pitr", "disaster-recovery", "wal", "restore-drill"],
+      "examples": [
+        "What's my real recoverable window if I need to undo the last 10 minutes?",
+        "Give me a backup + restore-drill plan for a Supabase product that matters."
+      ]
+    }
+  ]
+}

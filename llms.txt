@@ -1,0 +1,95 @@
+# acorn
+
+> The Energy fleet's **database employee** — the Postgres/Supabase/Neon/Convex domain expert. acorn designs
+> multi-tenant schemas, ships zero-downtime migrations (expand→migrate→contract), writes and **tests** RLS
+> policies as the *un-privileged* role, stores+searches embeddings (pgvector HNSW/halfvec), plans backup/PITR,
+> and operates a database **as an agent** safely (branch/dev only, rows untrusted). Powered by Energy.
+
+This is the agent-readable map of acorn's surfaces. Drive acorn via the **CLI** (`acorn --help`) or its **MCP
+server** (server name `acorn`, 12 tools, stdio). Read `AGENTS.md` first for how to invoke everything and the
+hard rules. Paths are repo-relative to `~/acorn`.
+
+## Boundary (LOCKED — read before invoking)
+acorn owns **schema / migrations / RLS / the data layer ONLY**. It emits the migration, the RLS policy, the
+typed schema, and the two-connection-string contract — it does **NOT** write application code, query
+call-sites, API routes, or React (that is turbo's backend + pixel's web). It is not a generic SQL tutor: it
+states opinionated, Energy-default-biased stances and names the disputes it deliberately leaves open.
+
+## Start here
+- [AGENTS.md](./AGENTS.md): What acorn does, how to invoke its CLI + every MCP tool, the boundary, the 12 house rules, and the REFUSES list.
+- [CLAUDE.md](./CLAUDE.md): Claude Code operating doc — the FOUR THINGS, the currency-rule, test RLS as the un-privileged role, never push to prod.
+- [PLAN.md](./PLAN.md): The build contract. [MASTER-TODOS.md](./MASTER-TODOS.md): the task board. [HARNESS-OVERRIDES.md](./HARNESS-OVERRIDES.md): the per-component DONE bar.
+
+## Identity
+- [identity/SOUL.md](./identity/SOUL.md): Who acorn is — mission, personality, boundaries (the seed/oak metaphor: the schema is the seed of the product).
+- [identity/BRAND.md](./identity/BRAND.md): Name rationale, tagline, warm-black design tokens.
+- [identity/MEMORY.md](./identity/MEMORY.md): The ≤2,000-token bootstrap — the 12 house rules + the default stack + the 5 currency-inflection dates.
+- [.well-known/agent.json](./.well-known/agent.json): A2A agent card (name / description / endpoint / capabilities).
+
+## The CLI command tree (`acorn`) — the employee's hands
+Each verb is also an MCP tool (1:1). Every command exits 0 on success / non-zero on violation; `--json` on lint/doctor.
+- `acorn schema "<brief>"` — brief → tenancy decision + migrations + RLS + typed schema, applied to a fresh ephemeral DB, RLS verified by tests. (THE acceptance command.)
+- `acorn rls {lint,gen,test}` — lint policies (P1-P9), generate the gated 2-policy block, test as `anon`/`authenticated` (NEVER the SQL Editor).
+- `acorn migration {lint,safe,apply,ledger-backfill}` — lint the 5 outage-makers (P10-P15), rewrite to NOT VALID+VALIDATE, apply to a branch, backfill the ORM ledger after a restore.
+- `acorn vector {plan,recall}` — HNSW + halfvec(≥1536) + iterative_scan table/index; measure recall before tuning.
+- `acorn conn gen` — the mandatory pooled `:6543` (`prepare:false`) + direct `:5432` split.
+- `acorn provision` — agent-provision an ephemeral branch/dev DB → migrate → verify → merge-or-destroy (refuses a prod DATABASE_URL).
+- `acorn backup plan` — PITR/DR plan: monitored WAL gaps, PITR-add-on check, Time-Travel, explicit RPO/RTO + a restore drill.
+- `acorn doctor` — provider PG major (feature-detect `uuidv7`), pgvector version, RLS-coverage %, connection-string sanity.
+- `acorn brain search "<q>"` — BM25 over `brain/*.md` (the Memory component).
+- `acorn --help | --version` — standard.
+
+## The MCP server (`acorn`) — all 12 tools (1:1 with the CLI; stdio; rows untrusted; inspect-tools read-only branch/dev)
+- `acorn_schema` — {brief, provider?, apply?} → {migrations[], policies[], typed_schema, eval_verdict}
+- `acorn_rls_lint` — {sql|path, json?} → {violations:[{rule, table, line, severity}]}
+- `acorn_rls_gen` — {table, tenant_col, auth:"clerk"|"supabase-jwt"} → {policy_sql}
+- `acorn_rls_test` — {sql, as:"anon"|"authenticated"} → {isolated, rows, raised?}
+- `acorn_migration_lint` — {sql, json?} → {outage_risks:[{rule, lock_class, line}]}
+- `acorn_migration_safe` — {sql} → {rewritten_sql}
+- `acorn_vector_plan` — {dim, provider} → {table_sql, index_sql, notes}
+- `acorn_conn_gen` — {provider, runtime} → {pooled_url_template, direct_url_template, driver_flags}
+- `acorn_provision` — {provider, schema_path} → {branch_id, applied, verify_report}  (branch/dev only)
+- `acorn_backup_plan` — {provider} → {rpo, rto, wal_monitoring, restore_drill}
+- `acorn_doctor` — {database_url?} → {pg_major, has_uuidv7, pgvector_version, rls_coverage_pct}
+- `acorn_brain_search` — {query} → {hits:[{file, score, excerpt}]}
+
+Wiring: [.mcp.json](./.mcp.json) — the `acorn` server (`node dist/mcp/server.js`) + env-ref keys only (no live keys).
+
+## Skills (progressive-disclosure procedures, each citing its brain source)
+- [design-multitenant-schema](./skills/design-multitenant-schema/SKILL.md): the tenancy decision tree + column house-style.
+- [harden-rls](./skills/harden-rls/SKILL.md): the 9 RLS pitfalls P1-P9; test as the un-privileged role.
+- [zero-downtime-migration](./skills/zero-downtime-migration/SKILL.md): expand→migrate→contract; the 84M-row/4h12m postmortem.
+- [pgvector-rag](./skills/pgvector-rag/SKILL.md): HNSW + halfvec(≥1536) + iterative_scan.
+- [agent-db-safety](./skills/agent-db-safety/SKILL.md): the lethal-trifecta defenses + the two-connection-string contract.
+
+## Sub-agents (flat; explicit model routing; packaged + reusable)
+- [.claude/agents/rls-auditor.md](./.claude/agents/rls-auditor.md): audits a schema for RLS pitfalls P1-P9, tests as `anon`/`authenticated`.
+- [.claude/agents/migration-safety-reviewer.md](./.claude/agents/migration-safety-reviewer.md): audits a migration for the 5 outage-makers P10-P15, rewrites to the safe two-step.
+
+## The brain (memory — acorn's expertise corpus, BM25-searchable via `acorn brain search`)
+- [brain/MOC - acorn.md](./brain/MOC%20-%20acorn.md): the master hub.
+- [brain/EXPERTISE-MAP.md](./brain/EXPERTISE-MAP.md): start here — the vertical by job-to-be-done (the 12 house rules).
+- [brain/BATTLE-TESTED-SCENARIOS.md](./brain/BATTLE-TESTED-SCENARIOS.md): the real incidents → the golden eval tasks.
+- [brain/KNOWN-PITFALLS.md](./brain/KNOWN-PITFALLS.md): 35 version-specific gotchas (detect + avoid).
+- [brain/OPINIONS.md](./brain/OPINIONS.md): explicit ALWAYS/NEVER stances (the anti-slop layer).
+- [brain/GAPS-AND-DISPUTES.md](./brain/GAPS-AND-DISPUTES.md): unresolved disputes + facts to feature-detect.
+- [brain/TOOL-MATRIX.md](./brain/TOOL-MATRIX.md): default/alt tools + the agent CLI/API/MCP surface.
+
+## Hooks (the house rules enforced at the repo boundary)
+- [.claude/settings.json](./.claude/settings.json): wiring (PreToolUse · Bash → block `drizzle-kit push` vs a non-dev URL).
+- [hooks/block-prod-push.sh](./hooks/block-prod-push.sh): refuses a `drizzle-kit push` against a prod/unset DATABASE_URL.
+- [hooks/lint-staged-sql.sh](./hooks/lint-staged-sql.sh): runs `acorn migration lint` on staged `*.sql` (flags a bare `CREATE INDEX`, etc.).
+
+## Evals, RSI, observability
+- [eval/eval.py](./eval/eval.py): L1 (per house rule) + the ≥10 golden tasks G1-G15 (L2) + Pass^k. [eval/judge.py](./eval/judge.py): the L3 migration-trajectory judge (κ self-test).
+- [.github/workflows/acceptance.yml](./.github/workflows/acceptance.yml): the merge-gating acceptance job — `acorn schema "<helpdesk brief>"` on `supabase/postgres`, RLS verified as `authenticated`.
+- [.github/workflows/rsi.yml](./.github/workflows/rsi.yml) + [workflows/rsi.workflow.js](./workflows/rsi.workflow.js): the nightly deterministic self-improvement loop (tokenless; the Claude half lights with `CLAUDE_CODE_OAUTH_TOKEN`).
+- [scripts/log-run.mjs](./scripts/log-run.mjs) → [logs/runs.jsonl](./logs/runs.jsonl): every run with model + duration + the **DB verdict** (migration safety class, RLS-coverage %).
+
+## Plugin + toolkit
+- [.claude-plugin/manifest.json](./.claude-plugin/manifest.json): the Claude Code plugin bundle (CLI + MCP + 5 skills + hooks + 2 sub-agents). It surfaces all 12 MCP tools above — e.g. `acorn_schema`, `acorn_rls_lint`, `acorn_migration_safe`.
+- [src/toolkit/export.ts](./src/toolkit/export.ts): the thin `@energy/agent-toolkit` tool-export — a sibling employee can `import { lintRls, safeMigration } from "acorn/toolkit"` instead of shelling out to the CLI or calling `acorn_rls_lint` over JSON-RPC.
+
+## The acceptance test (the bar)
+`acorn schema "a multi-tenant helpdesk: orgs have members; members file tickets; tickets have messages" --provider supabase --apply --verify-rls`
+→ migrations applied on a fresh DB + RLS verified by tests **as the un-privileged role**. Green in CI via `.github/workflows/acceptance.yml`. This is the operational definition of "world's best database employee."

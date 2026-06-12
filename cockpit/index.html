@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>acorn · database employee</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Energy type contract (.claude/rules/design.md): Instrument Serif display-only + Poppins body -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<!-- Phosphor icons (nav rail + status glyphs) -->
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="brand">
+    <div class="wordmark">acorn<span class="dot">.</span></div>
+    <div class="tagline">The database employee &mdash; schema, migrations, RLS &amp; tenant isolation that survive production. <span class="muted">Read-only cockpit; the chairman's eyes only.</span></div>
+  </div>
+  <!-- stat-strip: 4 live globals, populated by app.js refreshStats() from the API -->
+  <div class="stat-strip">
+    <div class="stat"><div class="v num" id="stat-runs">&mdash;</div><div class="k">runs</div></div>
+    <div class="stat"><div class="v num" id="stat-safe">&mdash;</div><div class="k">safe</div></div>
+    <div class="stat"><div class="v num" id="stat-l1">&mdash;</div><div class="k">L1 evals</div></div>
+    <div class="stat"><div class="v num" id="stat-cov">&mdash;</div><div class="k">avg RLS</div></div>
+  </div>
+</header>
+
+<div class="shell">
+  <!-- nav rail: built by app.js from the registered views -->
+  <nav id="nav-rail" class="rail" aria-label="Views">
+    <div class="rail-foot">
+      All data is real &mdash; the same artifacts the CLI / MCP produce.<br>
+      Boundary: <code>schema / RLS / migrations</code> only.<br><br>
+      <kbd>/</kbd> search &middot; <kbd>1&ndash;4</kbd> views
+    </div>
+  </nav>
+
+  <!-- single mount point: app.js renders the active view here -->
+  <main id="app-view" class="stage"></main>
+</div>
+
+<div id="toast" role="status"></div>
+
+<!-- vendor CDN: marked.js for brain markdown render only -->
+<script src="https://cdn.jsdelivr.net/npm/marked@13.0.3/marked.min.js"></script>
+
+<script src="/app.js"></script>
+</body>
+</html>

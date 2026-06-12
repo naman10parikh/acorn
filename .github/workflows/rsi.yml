@@ -1,8 +1,12 @@
 name: acorn RSI
-# CP123: dispatch-only until the RSI engine (workflows/rsi.workflow.js + eval gate) is built in Wave B/E.
-# The Claude half additionally needs CLAUDE_CODE_OAUTH_TOKEN (chairman checklist, D8). Guarded = always green.
+# CP123 D2: the deterministic ($0/tokenless) RSI heartbeat. Runs the version-gate / eval / RLS-drift /
+# brain-freshness checks via workflows/rsi.workflow.js — green unless the eval pyramid actually regressed.
+# The Claude half (refresh a brain artifact, draft a new lint) additionally needs CLAUDE_CODE_OAUTH_TOKEN
+# (chairman checklist, D8) and is NOT wired here. The engine-guard keeps the run green before the engine lands.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *" # 09:00 UTC daily (fleet convention)
 
 permissions:
   contents: read
@@ -13,8 +17,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Engine guard
+        id: guard
         run: |
           if [ ! -f workflows/rsi.workflow.js ]; then
-            echo "RSI engine not built yet (CP123 cluster E) — exiting green."; exit 0
+            echo "RSI engine not built yet — exiting green."
+            echo "armed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "engine present — deterministic half would run here (wired in cluster E)"
+          echo "armed=true" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@v4
+        if: steps.guard.outputs.armed == 'true'
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.armed == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Build (the RSI loop re-lints with the built CLI)
+        if: steps.guard.outputs.armed == 'true'
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm build
+      - name: RSI deterministic heartbeat (red on a real eval regression)
+        if: steps.guard.outputs.armed == 'true'
+        run: node workflows/rsi.workflow.js

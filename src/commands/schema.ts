@@ -3,15 +3,14 @@
 // This is the employee's headline verb: a one-line domain brief → tenancy decision + migrations + RLS
 // policies + typed schema, applied to a fresh ephemeral DB, RLS verified by tests. The multi-step ROUTING
 // LOOP that orchestrates design → migration-gen → rls-gen → apply → eval is the DISPATCH component (D1,
-// `src/dispatch/schema-flow.ts`). B2 ships the CLI shell + the deterministic design step (the tenancy
-// decision is a pure function, B3) so `acorn schema ... --dry-run` prints the ordered plan today; D1 wires
-// the apply+eval legs. Per the board, stub-then-fill is fine for B2.
+// `src/dispatch/schema-flow.ts`). This command is a thin CLI shell over `runSchemaFlow`: it parses argv,
+// runs the loop (which logs each step in order — the §8 "verifiable step ordering" criterion), and prints
+// the generated artifacts. The apply leg (step 4) is delegated to the sandbox (E3); without a branch/dev
+// DATABASE_URL the loop reports the precondition honestly rather than faking an apply.
 
 import { Command } from "commander";
-import { decideTenancy } from "../gen/tenancy.js";
 import chalk from "chalk";
-
-const STEPS = ["design (tenancy + columns)", "migration generation", "rls-policy generation", "apply to branch", "eval / verify"] as const;
+import { runSchemaFlow, type Provider } from "../dispatch/schema-flow.js";
 
 export function schemaCommand(): Command {
   return new Command("schema")
@@ -22,31 +21,24 @@ export function schemaCommand(): Command {
     .option("--dry-run", "print the ordered routing plan without applying")
     .description("THE acceptance command: brief → tenancy + migrations + RLS + typed schema, applied to a fresh ephemeral DB, RLS verified by tests")
     .action((brief: string, opts: { provider: string; apply?: boolean; verifyRls?: boolean; dryRun?: boolean }) => {
-      // The deterministic design step (B3): infer rough tenant scale from the brief and decide tenancy.
-      const tenants = inferTenantScale(brief);
-      const decision = decideTenancy({ tenants });
+      const provider = (["supabase", "neon", "postgres"].includes(opts.provider) ? opts.provider : "supabase") as Provider;
+      // --dry-run (or no --apply and no DB) runs the deterministic chain only and reports the apply precondition.
+      const dryRun = opts.dryRun === true || (!opts.apply && !process.env.DATABASE_URL);
 
-      if (opts.dryRun || (!opts.apply && !process.env.DATABASE_URL)) {
-        process.stdout.write(chalk.bold(`acorn schema (provider: ${opts.provider}) — routing plan:\n`));
-        STEPS.forEach((s, i) => process.stdout.write(`  ${i + 1}. ${s}\n`));
-        process.stdout.write(`\nstep 1 — tenancy: ${chalk.cyan(decision.model)}\n  ${decision.rationale}\n`);
-        process.stdout.write(chalk.dim("\n(steps 4-5 apply+verify run via the dispatch loop, D1, once an ephemeral DB is available — re-run with --apply against a branch/dev DB or in the acceptance CI job.)\n"));
-        return;
-      }
+      process.stdout.write(chalk.bold(`acorn schema (provider: ${provider}) — routing loop:\n`));
+      const result = runSchemaFlow({ brief, provider, dryRun, databaseUrl: process.env.DATABASE_URL });
 
-      // --apply path is owned by the dispatch loop (D1) + the sandbox (E3): orchestrate the 5 steps in order,
-      // logging each via the observability log (E2). The shell reports the precondition rather than faking it.
-      process.stderr.write(
-        `acorn schema --apply — orchestrates: ${STEPS.join(" → ")} (dispatch loop, D1). ` +
-          (process.env.DATABASE_URL ? "Applying to the configured branch/dev DB.\n" : "No DATABASE_URL — provide a branch/dev DB (see `acorn provision`) or run the acceptance CI job.\n"),
+      process.stdout.write(`\n${chalk.bold("tenancy")}: ${chalk.cyan(result.tenancyModel)}\n`);
+      process.stdout.write(
+        chalk.dim(
+          `\n(migration + RLS SQL generated; the apply+verify-RLS legs run via the sandbox component (E3) against a branch/dev DB — re-run with --apply against a branch/dev DB, or in the acceptance CI job.)\n`,
+        ),
       );
-      process.exitCode = process.env.DATABASE_URL ? 0 : 2;
-    });
-}
 
-/** Rough, deterministic tenant-scale heuristic from the brief wording (the design step's input). */
-function inferTenantScale(brief: string): number {
-  const b = brief.toLowerCase();
-  if (/\b(enterprise|regulated|hospital|bank|residency)\b/.test(b)) return 300; // → schema/DB-per-tenant territory
-  return 10_000; // default SaaS scale → shared-schema + RLS
+      // Honest exit: the deterministic chain succeeded if the self-check passed. If --apply was requested
+      // without a branch/dev DB, the apply step was DEFERRED (not failed) — signal the precondition with a
+      // non-zero code so a caller/CI can tell "design ran but nothing was applied" apart from a clean apply.
+      if (opts.apply && !result.applied) process.exitCode = 2;
+      else if (!result.selfCheckPassed) process.exitCode = 1;
+    });
 }

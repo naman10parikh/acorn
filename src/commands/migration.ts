@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { lintMigration } from "../lint/migration.js";
 import { safeMigration } from "../transform/safe-migration.js";
 import { renderLint, emitSql, emitNotes } from "../cli/render.js";
+import { resolveSandbox, applyAndVerify, type SandboxProvider } from "../sandbox/branch-lifecycle.js";
 
 export function migrationCommand(): Command {
   const migration = new Command("migration").description("zero-downtime migrations: lint the outage-makers, rewrite to the safe two-step, apply to a branch");
@@ -36,21 +37,29 @@ export function migrationCommand(): Command {
 
   migration
     .command("apply")
+    .argument("[file]", "the migration .sql to apply (the sandbox applies it to a branch/dev DB)")
     .option("--branch", "apply to an ephemeral branch/dev DB (refuses a prod DATABASE_URL)")
-    .description("apply migrations to an EPHEMERAL branch/dev DB only (the sandbox component)")
-    .action((opts: { branch?: boolean }) => {
-      // The branch lifecycle + the prod-write refusal live in the sandbox component (E3). The shell enforces
-      // the --branch gate and reports the precondition rather than faking an apply.
+    .option("--provider <p>", "supabase | neon | postgres", "postgres")
+    .description("apply migrations to an EPHEMERAL branch/dev DB only (the sandbox component, E3)")
+    .action((file: string | undefined, opts: { branch?: boolean; provider: string }) => {
+      // --branch is REQUIRED: acorn never applies to a non-branch (could be prod). The prod-write refusal is
+      // enforced at the sandbox layer (prodGuard) before any psql call, so it holds even with a live DB.
       if (!opts.branch) {
         process.stderr.write("acorn migration apply: refusing — pass --branch. acorn NEVER applies to a production DB (branch/dev only).\n");
         process.exitCode = 2;
         return;
       }
-      process.stderr.write(
-        "acorn migration apply --branch — provisions an ephemeral Postgres (the sandbox component, E3), applies migrations, logs a runs.jsonl line with the safety verdict + branch id.\n" +
-          (process.env.DATABASE_URL ? "" : "No DATABASE_URL yet — start a branch/dev DB first (see `acorn provision`).\n"),
-      );
-      process.exitCode = process.env.DATABASE_URL ? 0 : 2;
+      const provider = (["supabase", "neon", "postgres"].includes(opts.provider) ? opts.provider : "postgres") as SandboxProvider;
+      const outcome = resolveSandbox(provider);
+      for (const n of outcome.notes) process.stderr.write(`  • ${n}\n`);
+
+      // Read the migration to apply (or note that the schema-flow would supply it). Without a file we still
+      // exercise the lifecycle + the audit line, but apply nothing (no fabricated SQL).
+      const sql = file ? readFileSync(file, "utf8") : "-- acorn: no migration file given; provision-only lifecycle check.\n";
+      const result = applyAndVerify(outcome, process.env.DATABASE_URL, sql, { verifyRls: false });
+      process.stderr.write(`  → ${result.detail}\n`);
+      // Exit 0 only on a real apply; otherwise signal the precondition (deferred/blocked), never a fake pass.
+      process.exitCode = result.applied ? 0 : 2;
     });
 
   migration

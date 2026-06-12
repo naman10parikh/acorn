@@ -20,6 +20,7 @@ import { connCommand } from "./commands/conn.js";
 import { schemaCommand } from "./commands/schema.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { brainCommand } from "./commands/brain.js";
+import { resolveSandbox, type SandboxProvider } from "./sandbox/branch-lifecycle.js";
 
 /** Read the package version from package.json (ships at the package root; dist/ is one level down). */
 function readVersion(): string {
@@ -54,21 +55,29 @@ function buildProgram(): Command {
 }
 
 /**
- * `acorn provision` — the agent-provision lifecycle (Neon branch ≤500ms | Supabase branch → migrate →
- * verify → merge-or-destroy), gated branch/dev-only. The live branch lifecycle + the prod-write refusal
- * are the sandbox component (E3); this shell enforces the branch/dev intent and reports the precondition.
+ * `acorn provision` — the agent-provision lifecycle (Neon branch ≤500ms | Supabase branch | supabase/postgres
+ * container → migrate → verify → merge-or-destroy), gated branch/dev-only (E3). Resolves the sandbox target,
+ * runs prodGuard (REFUSES a prod-looking URL), and reports the outcome. NEVER provisions or writes to prod.
  */
 function provisionCommand(): Command {
   return new Command("provision")
     .option("--provider <p>", "supabase | neon | postgres", "supabase")
+    .option("--json", "emit JSON for agent consumption")
     .description("agent-provision lifecycle: an ephemeral branch/dev DB → migrate → verify → merge-or-destroy (branch/dev only; refuses prod)")
-    .action((opts: { provider: string }) => {
-      process.stderr.write(
-        `acorn provision (provider: ${opts.provider}) — boots an ISOLATED ephemeral Postgres (Neon branch ≤500ms | Supabase branch | supabase/postgres container), applies migrations, runs RLS tests as the un-privileged role, and the agent cred CANNOT write to production (role/scoping blocks it).\n` +
-          "The live branch lifecycle is the sandbox component (E3). It NEVER targets a prod DATABASE_URL — branch/dev only (SCENARIO #8).\n" +
-          (process.env.DATABASE_URL ? "" : "No DATABASE_URL yet — the provision harness (E3) creates the branch; until then this is a not-yet-wired exit, not a fake provision.\n"),
-      );
-      process.exitCode = process.env.DATABASE_URL ? 0 : 2;
+    .action((opts: { provider: string; json?: boolean }) => {
+      const provider = (["supabase", "neon", "postgres"].includes(opts.provider) ? opts.provider : "supabase") as SandboxProvider;
+      const outcome = resolveSandbox(provider);
+      if (opts.json) {
+        process.stdout.write(JSON.stringify({ ready: outcome.ready, branch: outcome.branchId, guard: outcome.guard, notes: outcome.notes }, null, 2) + "\n");
+      } else {
+        process.stderr.write(`acorn provision (provider: ${provider}) — branch/dev only; acorn NEVER writes to production (SCENARIO #8).\n`);
+        process.stderr.write(`  prodGuard: ${outcome.guard.allowed ? "ALLOWED" : "REFUSED"} — ${outcome.guard.reason}\n`);
+        for (const n of outcome.notes) process.stderr.write(`  • ${n}\n`);
+        process.stderr.write(outcome.ready ? `  → branch ready: ${outcome.branchId}\n` : "  → no branch provisioned (precondition above) — not a fake provision.\n");
+      }
+      // Exit 0 only when a real branch/dev DB is ready; non-zero (precondition) otherwise. A REFUSED prod URL
+      // is exit 3 (distinct from "nothing available" = 2) so a caller can tell a safety-block from a missing DB.
+      process.exitCode = outcome.ready ? 0 : outcome.guard.allowed ? 2 : process.env.DATABASE_URL ? 3 : 2;
     });
 }
 

@@ -62,7 +62,7 @@ export function resolveSandbox(provider: SandboxProvider, databaseUrl = process.
   notes.push(
     "No branch/dev DB available. acorn provisions one of: a `supabase/postgres` container (CI `services:`) → " +
       "set DATABASE_URL; OR a Neon branch → set NEON_API_KEY (then `neonctl branches create`). " +
-      "Locally: `docker run -d -e POSTGRES_PASSWORD=postgres -p 5432:5432 supabase/postgres:15.8.1`. " +
+      "Locally: `docker run -d -e POSTGRES_PASSWORD=postgres -p 5432:5432 supabase/postgres:15.8.1.135`. " +
       "acorn NEVER provisions or writes to production.",
   );
   return {

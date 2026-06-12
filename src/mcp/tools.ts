@@ -168,7 +168,7 @@ export const TOOLS: readonly ToolDef[] = [
         precondition:
           "RLS tests run as the un-privileged role (SET ROLE " +
           as +
-          " + request.jwt.claims), NEVER the SQL Editor. The live ephemeral-Postgres harness is the sandbox component (E3): start one with `docker run -d -e POSTGRES_PASSWORD=postgres -p 5432:5432 supabase/postgres:15.8.1`, then test/integration/rls.test.ts asserts isolation. " +
+          " + request.jwt.claims), NEVER the SQL Editor. The live ephemeral-Postgres harness is the sandbox component (E3): start one with `docker run -d -e POSTGRES_PASSWORD=postgres -p 5432:5432 supabase/postgres:15.8.1.135`, then test/integration/rls.test.ts asserts isolation. " +
           (hasDb ? "DATABASE_URL present — the sandbox harness performs the live assertion." : "No branch/dev DATABASE_URL yet — this is a not-yet-wired result, not a fake pass."),
       };
     },

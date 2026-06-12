@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: supabase/postgres:15.8.1 # pinned; identical engine to hosted Supabase
+        image: supabase/postgres:15.8.1.135 # pinned (real Hub tag; bare :15.8.1 is 404); identical engine to hosted Supabase
         env:
           POSTGRES_PASSWORD: postgres
         ports:

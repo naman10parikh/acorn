@@ -51,7 +51,7 @@ export function rlsCommand(): Command {
       process.stderr.write(
         `acorn rls test — runs ${file} as role '${opts.as}' (NEVER the Supabase SQL Editor — it runs as postgres and bypasses ALL RLS).\n` +
           `Requires an ephemeral Postgres (the sandbox component): start one with\n` +
-          `  docker run -d -e POSTGRES_PASSWORD=postgres -p 5432:5432 supabase/postgres:15.8.1\n` +
+          `  docker run -d -e POSTGRES_PASSWORD=postgres -p 5432:5432 supabase/postgres:15.8.1.135\n` +
           `then the integration test (test/integration/rls.test.ts) asserts: user A reads only A's rows; an anon SELECT returns 0; a foreign-tenant INSERT is rejected by WITH CHECK.\n`,
       );
       // Until a DATABASE_URL pointing at a branch/dev DB is present, this is a not-yet-wired exit (E3), not a fake pass.

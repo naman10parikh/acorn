@@ -1,0 +1,11 @@
+{
+  "id": "diff-11",
+  "trajectory": "ALTER TABLE users RENAME COLUMN full_name TO display_name;",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "a bare RENAME breaks the still-running old app version mid rolling-deploy (P13)."
+}

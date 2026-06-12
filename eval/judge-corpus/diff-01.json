@@ -1,0 +1,11 @@
+{
+  "id": "diff-01",
+  "trajectory": "SET lock_timeout = '3s';\nALTER TABLE users ADD CONSTRAINT users_phone_check CHECK (phone IS NOT NULL) NOT VALID;\nALTER TABLE users VALIDATE CONSTRAINT users_phone_check;  -- weaker ShareUpdateExclusive, reads/writes continue",
+  "label": {
+    "expand_contract": true,
+    "lock_class_cited": true,
+    "safe_rewrite": true
+  },
+  "expected_verdict": "safe",
+  "note": "the canonical 84M-row CHECK done right (SCENARIO #4) \u2014 NOT VALID+VALIDATE + lock_timeout + the lock class named."
+}

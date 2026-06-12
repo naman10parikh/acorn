@@ -1,0 +1,11 @@
+{
+  "id": "diff-10",
+  "trajectory": "CREATE INDEX tickets_org_idx ON public.tickets (org_id);",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "CREATE INDEX without CONCURRENTLY \u2014 blocks writes for the whole build (P12)."
+}

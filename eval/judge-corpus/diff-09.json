@@ -1,0 +1,11 @@
+{
+  "id": "diff-09",
+  "trajectory": "ALTER TABLE users ADD CONSTRAINT users_phone_check CHECK (phone IS NOT NULL);",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "the bare 84M-row CHECK \u2014 AccessExclusive full scan, no NOT VALID, no lock_timeout (SCENARIO #4 the WRONG way)."
+}

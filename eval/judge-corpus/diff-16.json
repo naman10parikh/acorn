@@ -1,0 +1,11 @@
+{
+  "id": "diff-16",
+  "trajectory": "SET lock_timeout = '3s';\nALTER TABLE users ADD CONSTRAINT users_age_check CHECK (age >= 0);  -- still validates on add despite lock_timeout",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "has lock_timeout but STILL validates the CHECK on add (no NOT VALID) \u2014 a lock_timeout only fails fast, it does not avoid the scan. A subtle one the judge must catch."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "diff-12",
+  "trajectory": "ALTER TABLE orders ALTER COLUMN amount TYPE bigint;",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "bare ALTER COLUMN TYPE rewrites the whole table under AccessExclusive (P11)."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "diff-13",
+  "trajectory": "ALTER TABLE users ADD CONSTRAINT users_org_fk FOREIGN KEY (org_id) REFERENCES orgs(id);",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "FK validated on add \u2014 AccessExclusive (P10)."
+}

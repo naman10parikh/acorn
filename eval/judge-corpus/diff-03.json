@@ -1,0 +1,11 @@
+{
+  "id": "diff-03",
+  "trajectory": "-- expand: add the new column nullable\nALTER TABLE users ADD COLUMN display_name text;\n-- backfill in batches, dual-write from the app, switch reads\nUPDATE users SET display_name = full_name WHERE display_name IS NULL;\n-- contract (a release LATER): ALTER TABLE users DROP COLUMN full_name;",
+  "label": {
+    "expand_contract": true,
+    "lock_class_cited": false,
+    "safe_rewrite": true
+  },
+  "expected_verdict": "safe",
+  "note": "a rename done as expand\u2192backfill\u2192contract, no DROP+ADD data loss (SCENARIO #5). Lock class not named but the change is non-breaking by construction."
+}

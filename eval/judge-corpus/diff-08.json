@@ -1,0 +1,11 @@
+{
+  "id": "diff-08",
+  "trajectory": "SET lock_timeout = '3s';\nCREATE UNIQUE INDEX CONCURRENTLY users_email_uniq ON public.users (email);",
+  "label": {
+    "expand_contract": true,
+    "lock_class_cited": false,
+    "safe_rewrite": true
+  },
+  "expected_verdict": "safe",
+  "note": "unique index built CONCURRENTLY (P12)."
+}

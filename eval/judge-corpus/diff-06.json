@@ -1,0 +1,11 @@
+{
+  "id": "diff-06",
+  "trajectory": "CREATE TABLE public.notes (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), org_id uuid NOT NULL, body text);\nALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;",
+  "label": {
+    "expand_contract": true,
+    "lock_class_cited": false,
+    "safe_rewrite": true
+  },
+  "expected_verdict": "safe",
+  "note": "a plain additive CREATE TABLE + RLS enabled \u2014 non-breaking, no rewrite needed (N/A criteria \u2192 safe)."
+}

@@ -1,0 +1,11 @@
+{
+  "id": "diff-15",
+  "trajectory": "ALTER TABLE users DROP COLUMN legacy_token;",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "a bare DROP COLUMN 500s old app instances mid-deploy (P13) \u2014 drop a release after the code stops using it."
+}

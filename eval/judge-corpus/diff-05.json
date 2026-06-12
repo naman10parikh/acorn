@@ -1,0 +1,11 @@
+{
+  "id": "diff-05",
+  "trajectory": "SET lock_timeout = '3s';\nALTER TABLE users ADD CONSTRAINT users_email_nn CHECK (email IS NOT NULL) NOT VALID;\nALTER TABLE users VALIDATE CONSTRAINT users_email_nn;\nALTER TABLE users ALTER COLUMN email SET NOT NULL;  -- PG12+ uses the validated CHECK, skips the AccessExclusive scan",
+  "label": {
+    "expand_contract": true,
+    "lock_class_cited": true,
+    "safe_rewrite": true
+  },
+  "expected_verdict": "safe",
+  "note": "SET NOT NULL via the CHECK-NOT-VALID trick, lock class named."
+}

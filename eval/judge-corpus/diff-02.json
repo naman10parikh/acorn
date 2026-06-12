@@ -1,0 +1,11 @@
+{
+  "id": "diff-02",
+  "trajectory": "SET lock_timeout = '3s';\nCREATE INDEX CONCURRENTLY tickets_org_idx ON public.tickets (org_id);  -- ShareUpdateExclusive, writes continue; cannot run in a txn",
+  "label": {
+    "expand_contract": true,
+    "lock_class_cited": true,
+    "safe_rewrite": true
+  },
+  "expected_verdict": "safe",
+  "note": "CONCURRENTLY index with the lock class noted (P12)."
+}

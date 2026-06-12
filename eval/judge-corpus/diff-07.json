@@ -1,0 +1,11 @@
+{
+  "id": "diff-07",
+  "trajectory": "-- acorn (P11): a bare ALTER COLUMN TYPE rewrites the table under AccessExclusive. Instead:\n-- 1. ADD COLUMN amount_new bigint; 2. backfill in batches; 3. dual-write; 4. drop the old, rename a release later.",
+  "label": {
+    "expand_contract": true,
+    "lock_class_cited": true,
+    "safe_rewrite": true
+  },
+  "expected_verdict": "safe",
+  "note": "type change handled as an expand/contract scaffold with the lock class named (P11)."
+}

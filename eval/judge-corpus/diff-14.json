@@ -1,0 +1,11 @@
+{
+  "id": "diff-14",
+  "trajectory": "ALTER TABLE users ALTER COLUMN email SET NOT NULL;",
+  "label": {
+    "expand_contract": false,
+    "lock_class_cited": false,
+    "safe_rewrite": false
+  },
+  "expected_verdict": "unsafe",
+  "note": "bare SET NOT NULL scans the whole table under AccessExclusive (P10)."
+}

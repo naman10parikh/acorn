@@ -27,5 +27,8 @@ vault/Untitled*.base
 migrations/
 eval/_tmp_*.sql
 
+# TypeScript build output — `pnpm build` regenerates it; never commit (it showed as `?? dist/`)
+dist/
+
 .env
 .env.*

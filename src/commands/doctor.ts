@@ -16,6 +16,16 @@ interface DoctorReport {
   readonly rls_coverage_pct: number | null;
   readonly conn_string_sane: boolean;
   readonly notes: readonly string[];
+  /** true when the live DB probe actually ran (URL present AND psql on PATH); lets the display
+   *  distinguish "couldn't probe" (needs URL/psql) from "probed, value is null/not-applicable"
+   *  (e.g. pgvector simply isn't installed) — so a reachable DB never prints "needs DATABASE_URL". */
+  readonly probed: boolean;
+}
+
+/** Placeholder for a null field: only "needs DATABASE_URL" when we genuinely couldn't probe;
+ *  once the DB was reached, a null value means that specific thing is absent, not the URL. */
+function placeholder(probed: boolean, whenProbedNull: string): string {
+  return probed ? whenProbedNull : "needs DATABASE_URL";
 }
 
 export function doctorCommand(): Command {
@@ -31,10 +41,10 @@ export function doctorCommand(): Command {
         return;
       }
       process.stdout.write(chalk.bold("acorn doctor\n"));
-      line("PG major", report.pg_major === null ? chalk.dim("needs DATABASE_URL") : String(report.pg_major));
-      line("uuidv7() available", report.has_uuidv7 === null ? chalk.dim("needs DATABASE_URL") : report.has_uuidv7 ? chalk.green("yes") : chalk.yellow("no → fall back to gen_random_uuid()"));
-      line("pgvector", report.pgvector_version === null ? chalk.dim("needs DATABASE_URL") : report.pgvector_version);
-      line("RLS coverage", report.rls_coverage_pct === null ? chalk.dim("needs DATABASE_URL") : `${report.rls_coverage_pct}%`);
+      line("PG major", report.pg_major === null ? chalk.dim(placeholder(report.probed, "—")) : String(report.pg_major));
+      line("uuidv7() available", report.has_uuidv7 === null ? chalk.dim(placeholder(report.probed, "—")) : report.has_uuidv7 ? chalk.green("yes") : chalk.yellow("no → fall back to gen_random_uuid()"));
+      line("pgvector", report.pgvector_version === null ? chalk.dim(placeholder(report.probed, "not installed")) : report.pgvector_version);
+      line("RLS coverage", report.rls_coverage_pct === null ? chalk.dim(placeholder(report.probed, "—")) : `${report.rls_coverage_pct}%`);
       line("conn-string sane", report.conn_string_sane ? chalk.green("yes") : chalk.yellow("review (need pooled :6543 prepare:false + direct :5432)"));
       for (const n of report.notes) process.stdout.write(chalk.dim(`• ${n}\n`));
     });
@@ -47,14 +57,14 @@ function probe(url: string | undefined): DoctorReport {
   if (!url) {
     notes.push("No DATABASE_URL — live probes (PG major, uuidv7, pgvector, RLS coverage) require a branch/dev DB. Start one with `acorn provision` or a supabase/postgres container.");
     notes.push("Currency rule: Supabase defaults to PG17 (no native uuidv7); PG18 shipped 2025-09-25. acorn feature-detects `SELECT uuidv7()` before using it — never hard-coded.");
-    return { pg_major: null, has_uuidv7: null, pgvector_version: null, rls_coverage_pct: null, conn_string_sane: connSane, notes };
+    return { pg_major: null, has_uuidv7: null, pgvector_version: null, rls_coverage_pct: null, conn_string_sane: connSane, notes, probed: false };
   }
   // With a URL present, run the live probe via the sandbox psql primitive (E3). When psql is absent (local
   // dev with no client), report the precondition + the static currency note rather than inventing numbers.
   if (!psqlAvailable()) {
     notes.push("DATABASE_URL present but psql not on PATH — install postgresql-client to populate the live fields (PG major / uuidv7 / pgvector / RLS coverage).");
     notes.push("Currency rule: Supabase defaults to PG17 (no native uuidv7); PG18 shipped 2025-09-25. acorn feature-detects `SELECT uuidv7()` before using it.");
-    return { pg_major: null, has_uuidv7: null, pgvector_version: null, rls_coverage_pct: null, conn_string_sane: connSane, notes };
+    return { pg_major: null, has_uuidv7: null, pgvector_version: null, rls_coverage_pct: null, conn_string_sane: connSane, notes, probed: false };
   }
   // A read-only probe (no mutation). prodGuard is advisory here (we only SELECT), but we still avoid a prod
   // host for the RLS-coverage scan to keep the read-only-at-role spirit. Use -tA for clean parseable output.
@@ -77,6 +87,13 @@ function probe(url: string | undefined): DoctorReport {
     );
   }
   if (!guard.allowed) notes.push(`Note: this URL is not a recognized branch/dev target — acorn read-only-probed it but would REFUSE to mutate it.`);
+  // psql is present and we attempted the probe, but the server version came back null → the DB was
+  // unreachable (bad host/creds/firewall). Say so plainly instead of printing a wall of bare "—".
+  if (pgMajor === null) {
+    notes.push("psql is installed but the probe returned nothing — the DATABASE_URL is unreachable (host/credentials/firewall). acorn invented no values.");
+  } else if (pgvectorVer === null) {
+    notes.push("pgvector extension is not installed on this DB — run `CREATE EXTENSION vector;` (or `acorn vector plan`) before storing embeddings.");
+  }
 
   return {
     pg_major: pgMajor,
@@ -85,6 +102,7 @@ function probe(url: string | undefined): DoctorReport {
     rls_coverage_pct: rlsCoverage,
     conn_string_sane: connSane,
     notes,
+    probed: true,
   };
 }
 

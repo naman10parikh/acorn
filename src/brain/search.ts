@@ -12,7 +12,40 @@
 // brain/BATTLE-TESTED-SCENARIOS.md (Scenario #9 — the filtered-ANN over-filter incident, golden task G10).
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join, basename, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Resolve the brain corpus dir without assuming the caller's cwd is the repo root.
+ *
+ * acorn is employee-first (PLAN §3): the callers are coding agents / sibling employees / the energy hub,
+ * NOT a shell sitting in acorn's repo root. Resolving `brain/` against `process.cwd()` made `acorn brain
+ * search` silently return zero hits whenever invoked from any other directory (or as a global binary).
+ * This walks up from the compiled module (dist/brain/search.js → dist/ → <package root>) to find the
+ * shipped `brain/` dir, and only falls back to cwd if that isn't present. First existing candidate wins.
+ */
+function defaultBrainDir(): string {
+  const candidates: string[] = [];
+  try {
+    // <pkg>/dist/brain/search.js → up to <pkg>, where brain/ lives alongside dist/.
+    const here = dirname(fileURLToPath(import.meta.url)); // <pkg>/dist/brain
+    candidates.push(join(here, "..", "..", "brain")); // <pkg>/brain
+    candidates.push(join(here, "..", "brain")); // <pkg>/dist/brain (defensive)
+  } catch {
+    // import.meta.url unavailable (e.g. an exotic bundler) — fall through to cwd.
+  }
+  candidates.push(join(process.cwd(), "brain")); // dev-from-source / running at repo root
+  for (const dir of candidates) {
+    try {
+      if (statSync(dir).isDirectory()) return dir;
+    } catch {
+      // not this candidate; try the next
+    }
+  }
+  // Nothing found — return the module-relative path so the corpus loader reports "no hits" honestly
+  // (and a future fix has the most-likely-correct path to inspect), rather than the cwd guess.
+  return candidates[0] ?? join(process.cwd(), "brain");
+}
 
 export interface BrainHit {
   /** repo-relative path, e.g. "brain/BATTLE-TESTED-SCENARIOS.md" */
@@ -120,7 +153,7 @@ function bestExcerpt(doc: Doc, queryTerms: readonly string[]): string {
  * BM25 over the multi-document corpus, multiplied by the per-file source weight.
  */
 export function searchBrain(query: string, opts: SearchOptions = {}): BrainHit[] {
-  const brainDir = opts.brainDir ?? join(process.cwd(), "brain");
+  const brainDir = opts.brainDir ?? defaultBrainDir();
   const limit = opts.limit ?? 5;
   const queryTerms = [...new Set(tokenize(query))];
   if (queryTerms.length === 0) return [];

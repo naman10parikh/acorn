@@ -6,11 +6,34 @@
 // ledger-backfill → after a cross-provider restore, backfill the ORM ledger so it doesn't re-run + collide.
 
 import { Command } from "commander";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { lintMigration } from "../lint/migration.js";
 import { safeMigration } from "../transform/safe-migration.js";
 import { renderLint, emitSql, emitNotes } from "../cli/render.js";
 import { resolveSandbox, applyAndVerify, type SandboxProvider } from "../sandbox/branch-lifecycle.js";
+
+/**
+ * Read a single migration .sql file with a graceful error instead of a raw fs stack trace.
+ * `migration lint`/`safe`/`apply` operate on ONE file (unlike `rls lint`, which globs a dir),
+ * so a missing path or a directory is a user error → a clear message + exit 2 (the same
+ * "path not found" convention `rls lint` uses), NEVER an uncaught ERR_FS exception.
+ */
+function readMigrationFile(file: string, verb: string): string {
+  let st;
+  try {
+    st = statSync(file);
+  } catch {
+    process.stderr.write(`acorn migration ${verb}: file not found: ${file}\n`);
+    process.exit(2);
+  }
+  if (st.isDirectory()) {
+    process.stderr.write(
+      `acorn migration ${verb}: ${file} is a directory — pass a single .sql migration file (use 'acorn rls lint <dir>' to scan a directory).\n`,
+    );
+    process.exit(2);
+  }
+  return readFileSync(file, "utf8");
+}
 
 export function migrationCommand(): Command {
   const migration = new Command("migration").description("zero-downtime migrations: lint the outage-makers, rewrite to the safe two-step, apply to a branch");
@@ -21,7 +44,7 @@ export function migrationCommand(): Command {
     .option("--json", "emit JSON for agent consumption")
     .description("flag the 5 outage-makers (P10-P15): bare CHECK/NOT NULL/FK, ALTER TYPE, CREATE INDEX w/o CONCURRENTLY, bare RENAME/DROP, missing lock_timeout")
     .action((file: string, opts: { json?: boolean }) => {
-      const result = lintMigration(readFileSync(file, "utf8"));
+      const result = lintMigration(readMigrationFile(file, "lint"));
       process.exitCode = renderLint(result, { json: opts.json, label: `migration lint (${file})` });
     });
 
@@ -30,7 +53,7 @@ export function migrationCommand(): Command {
     .argument("<file>", "the migration .sql to rewrite")
     .description("rewrite unsafe DDL into the safe form: NOT VALID+VALIDATE, CONCURRENTLY, inject SET lock_timeout, expand/contract scaffold for renames")
     .action((file: string) => {
-      const { sql, notes } = safeMigration(readFileSync(file, "utf8"));
+      const { sql, notes } = safeMigration(readMigrationFile(file, "safe"));
       emitSql(sql);
       emitNotes(notes);
     });
@@ -54,8 +77,9 @@ export function migrationCommand(): Command {
       for (const n of outcome.notes) process.stderr.write(`  • ${n}\n`);
 
       // Read the migration to apply (or note that the schema-flow would supply it). Without a file we still
-      // exercise the lifecycle + the audit line, but apply nothing (no fabricated SQL).
-      const sql = file ? readFileSync(file, "utf8") : "-- acorn: no migration file given; provision-only lifecycle check.\n";
+      // exercise the lifecycle + the audit line, but apply nothing (no fabricated SQL). A bad path is a
+      // graceful error (readMigrationFile), not a raw fs stack trace.
+      const sql = file ? readMigrationFile(file, "apply") : "-- acorn: no migration file given; provision-only lifecycle check.\n";
       const result = applyAndVerify(outcome, process.env.DATABASE_URL, sql, { verifyRls: false });
       process.stderr.write(`  → ${result.detail}\n`);
       // Exit 0 only on a real apply; otherwise signal the precondition (deferred/blocked), never a fake pass.

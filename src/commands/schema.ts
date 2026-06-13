@@ -47,6 +47,16 @@ export function schemaCommand(): Command {
     .option("--dry-run", "print the ordered routing plan without applying")
     .description("THE acceptance command: brief → tenancy + migrations + RLS + typed schema, applied to a fresh ephemeral DB, RLS verified by tests")
     .action((brief: string, opts: { provider: string; apply?: boolean; verifyRls?: boolean; dryRun?: boolean }) => {
+      // An empty/whitespace-only brief is a user error — reject it cleanly instead of fabricating a
+      // placeholder schema (which silently invents a `records` table). acorn needs a real domain brief.
+      if (brief.trim().length === 0) {
+        process.stderr.write(
+          "acorn schema: empty brief — give a one-line domain description, e.g.\n" +
+            "  acorn schema \"a multi-tenant helpdesk: orgs have members; members file tickets\"\n",
+        );
+        process.exitCode = 2;
+        return;
+      }
       const provider = (["supabase", "neon", "postgres"].includes(opts.provider) ? opts.provider : "supabase") as Provider;
       // --dry-run (or no --apply and no DB) runs the deterministic chain only and reports the apply precondition.
       const dryRun = opts.dryRun === true || (!opts.apply && !process.env.DATABASE_URL);

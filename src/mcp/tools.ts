@@ -21,7 +21,27 @@ import { planVector, type VectorProvider } from "../gen/vector-plan.js";
 import { decideTenancy } from "../gen/tenancy.js";
 import { searchBrain } from "../brain/search.js";
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Allowlist root for file-path arguments (BLOCKER fix, adversary finding #1). MCP callers reach acorn over
+// the JSON-RPC wire and do NOT share its filesystem, so an unconstrained `existsSync(value)→readFileSync`
+// would let any client exfiltrate any file acorn can read (incl. .env secrets). We only ever read a path
+// that resolves INSIDE the repo. Compiled layout is <repo>/dist/mcp/tools.js → repo is two dirs up.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+/** An optional explicit migrations dir; still must resolve inside REPO_ROOT to be honoured. */
+const ALLOWED_ROOT = (() => {
+  const env = process.env.ACORN_MIGRATIONS_DIR;
+  if (typeof env === "string" && env.length > 0) {
+    const abs = resolve(REPO_ROOT, env);
+    if (abs === REPO_ROOT || abs.startsWith(REPO_ROOT + "/")) return abs;
+  }
+  return REPO_ROOT;
+})();
+/** True only if `abs` is the allowlist root itself or strictly inside it (mirrors the cockpit guard). */
+function isContained(abs: string): boolean {
+  return abs === ALLOWED_ROOT || abs.startsWith(ALLOWED_ROOT + "/");
+}
 
 /** A JSON-RPC tool definition surfaced by `tools/list`. */
 export interface ToolDef {
@@ -51,21 +71,31 @@ function num(args: Record<string, unknown>, key: string): number {
 
 /**
  * Resolve `sql` that may be a literal SQL string OR a path to a .sql file/dir. Mirrors the CLI's
- * `acorn rls lint <file|dir>` ergonomics so an agent can pass either. A path is only read if it actually
- * exists on disk; otherwise the value is treated as inline SQL (the common agent case).
+ * `acorn rls lint <file|dir>` ergonomics so an agent can pass either. A path is only read if it (a) resolves
+ * INSIDE the repo allowlist root (containment — `..`/absolute escapes are rejected) AND (b) is a .sql file,
+ * or a directory (only its .sql children are read). Anything else — non-existent, out-of-tree, or a non-.sql
+ * file like `.env`/`/etc/passwd` — is treated as inline SQL (the common agent case; the lints/rewriters are
+ * pure text transforms, so a non-SQL string is just analysed, never echoed as file content). This is the
+ * BLOCKER fix: an MCP caller can no longer turn a tool arg into an arbitrary file read.
  */
 function resolveSql(value: string): string {
   try {
-    if (existsSync(value)) {
-      const st = statSync(value);
-      if (st.isFile()) return readFileSync(value, "utf8");
-      if (st.isDirectory()) {
-        return readdirSync(value)
-          .filter((f) => f.endsWith(".sql"))
-          .sort()
-          .map((f) => readFileSync(join(value, f), "utf8"))
-          .join("\n");
-      }
+    // Reject anything that isn't a path we'd accept BEFORE touching the filesystem: it must end in .sql
+    // (file) or be an existing dir, and it must resolve inside the allowlist root. Resolving first then
+    // checking the prefix collapses `..` traversal (e.g. `../../etc/passwd` → /etc/passwd, not contained).
+    const abs = resolve(ALLOWED_ROOT, value);
+    if (!isContained(abs) || !existsSync(abs)) return value;
+    const st = statSync(abs);
+    if (st.isFile()) {
+      // Only .sql files are readable as paths — `.env`, `.pem`, etc. fall through to inline-SQL handling.
+      return abs.endsWith(".sql") ? readFileSync(abs, "utf8") : value;
+    }
+    if (st.isDirectory()) {
+      return readdirSync(abs)
+        .filter((f) => f.endsWith(".sql"))
+        .sort()
+        .map((f) => readFileSync(join(abs, f), "utf8"))
+        .join("\n");
     }
   } catch {
     // fall through — treat as inline SQL

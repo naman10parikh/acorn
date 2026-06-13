@@ -48,16 +48,32 @@ db_url="${DATABASE_URL:-}"
 # Safe signals (allow push):
 #   - localhost / 127.0.0.1 / ::1 / *.local in the URL
 #   - an explicit opt-in env: ACORN_DEV_DB or ACORN_ALLOW_PUSH set to a truthy value
-#   - an explicit branch marker in the URL (e.g. ...-branch-..., /branch_, sslmode aside)
+#   - an UNAMBIGUOUS branch marker in the URL — a compound token a branch provider emits
+#     (`-branch-`, `_branch_`, `/branch_`, or `acorn_branch`), NOT a bare `branch` substring.
+# Block-by-default: when in doubt, refuse. A bare `branch` token used to be enough, but a plausible
+# production URL (host `branch.acme-prod.com`, db-name `main_branch`) collided with it and was let through
+# (adversary finding #2). So: (a) only the compound branch markers below count — a lone `branch` segment is
+# no longer a safe signal, and (b) a `prod`/`production` marker ALWAYS wins and forces a block (see below).
 is_safe=0
 case "$db_url" in
   *localhost*|*127.0.0.1*|*'::1'*|*.local*|*.local:*) is_safe=1 ;;
 esac
-if printf '%s' "$db_url" | grep -Eqi '(^|[^a-z])branch([^a-z]|$)'; then
+# Unambiguous branch markers only (compound delimiters), so `*-prod*` hosts/db-names don't match.
+if printf '%s' "$db_url" | grep -Eqi '(-branch-|_branch_|/branch_|[/_-]acorn_branch([^a-z]|$))'; then
   is_safe=1
 fi
 case "${ACORN_DEV_DB:-}" in 1|true|TRUE|yes|YES) is_safe=1 ;; esac
 case "${ACORN_ALLOW_PUSH:-}" in 1|true|TRUE|yes|YES) is_safe=1 ;; esac
+
+# A production marker overrides every AUTO-detected safe signal (localhost/branch heuristics). The two
+# explicit env opt-ins (ACORN_DEV_DB / ACORN_ALLOW_PUSH) remain the only deliberate way to push past a
+# prod-looking URL — they are re-applied here so a deliberate override still wins, but an incidental
+# `branch` token in a `*prod*` URL no longer does.
+if printf '%s' "$db_url" | grep -Eqi '(^|[^a-z])(prod|production)([^a-z]|$)'; then
+  is_safe=0
+  case "${ACORN_DEV_DB:-}" in 1|true|TRUE|yes|YES) is_safe=1 ;; esac
+  case "${ACORN_ALLOW_PUSH:-}" in 1|true|TRUE|yes|YES) is_safe=1 ;; esac
+fi
 
 if [ "$is_safe" -eq 1 ]; then
   exit 0   # dev/branch/local — push is allowed there

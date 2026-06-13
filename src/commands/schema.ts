@@ -112,14 +112,22 @@ export function schemaCommand(): Command {
               // Record the migration id in the ledger so the next --apply is a no-op.
               applySql(dbUrl, `INSERT INTO public.__acorn_migrations (id) VALUES ('${migId}') ON CONFLICT DO NOTHING;`);
               process.stdout.write(chalk.green(`  ✓ ${av.detail} (ledger id ${migId})\n`));
-              // --verify-rls: run a real un-privileged-role probe as the acceptance evidence (anon sees 0).
+              // --verify-rls: run a real un-privileged-role probe as the acceptance evidence (anon sees no
+              // tenant data). TWO outcomes both satisfy the CVE-2025-48757 defense: (a) anon SELECT returns
+              // 0 rows (RLS-on, table reachable but every row denied), OR (b) "permission denied" — anon has
+              // no GRANT on the generated table at all (a STRONGER guarantee: the table is unreachable, not
+              // just empty). The generated schema GRANTs nothing to anon, so the real acceptance run hits (b);
+              // both are a pass. Only "anon saw rows" (anon.ok && a non-zero count) is the actual failure.
               if (opts.verifyRls) {
                 const anon = runRlsAsRole(dbUrl, "anon", "SELECT count(*) AS n FROM public.tickets");
                 const anonZero = anon.ok && /\b0\b/.test(anon.stdout);
+                const anonDenied = !anon.ok && /permission denied/i.test(anon.stderr);
                 process.stdout.write(
                   anonZero
                     ? chalk.green("  ✓ RLS verified: anon SELECT on a tenant table returns 0 rows (un-privileged role, not the SQL Editor).\n")
-                    : chalk.yellow(`  ! RLS verify probe: ${anon.ok ? "anon saw rows — review the policy" : anon.stderr.trim()}\n`),
+                    : anonDenied
+                      ? chalk.green("  ✓ RLS verified: anon is denied on a tenant table (no GRANT to the public key — CVE-2025-48757 defense; un-privileged role, not the SQL Editor).\n")
+                      : chalk.yellow(`  ! RLS verify probe: ${anon.ok ? "anon saw rows — review the policy" : anon.stderr.trim()}\n`),
                 );
               }
               applyExit = 0;

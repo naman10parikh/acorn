@@ -364,7 +364,7 @@ def run_task(task: dict, allow_db: bool, db_url: str) -> dict:
             "detail": (
                 f"structural OK ({structural_detail}); behavioral DB leg SKIPPED — {db_url}. "
                 "Run in CI (services: supabase/postgres) or `docker run -d -e POSTGRES_PASSWORD=postgres "
-                "-p 5432:5432 supabase/postgres:15.8.1` + export DATABASE_URL. NOT a fake pass."
+                "-p 5432:5432 supabase/postgres:15.8.1.135` + export DATABASE_URL. NOT a fake pass."
                 if structural_ok
                 else f"structural check FAILED: {structural_detail}"
             ),

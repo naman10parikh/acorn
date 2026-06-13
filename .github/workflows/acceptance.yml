@@ -56,6 +56,14 @@ jobs:
           pnpm install --frozen-lockfile || pnpm install
           pnpm build
 
+      # ── The FULL test pyramid WITH the live Postgres service (PLAN §9, CP123 Wave T) — red-blocking. ──
+      # ci.yml also runs `pnpm test`, but with NO database: there the DB-gated legs SKIP. This is the ONE job
+      # that has a real branch/dev Postgres ($DATABASE_URL + psql), so it is where the DB-gated layers must
+      # actually EXECUTE — the integration RLS tests (anon/authenticated isolation) AND the chaos
+      # kill-mid-migration tests (no half-applied state). Without this step those legs would skip forever in CI.
+      - name: Full test pyramid (unit · component · integration · contract MCP · E2E-CLI · chaos) — live DB
+        run: pnpm test
+
       # ── THE acceptance command (verbatim, PLAN §5) — generate → apply → verify RLS as the un-privileged role ──
       - name: acorn schema — apply + verify RLS (run 1)
         run: |

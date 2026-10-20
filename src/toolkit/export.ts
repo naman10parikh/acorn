@@ -3,7 +3,7 @@
 // PLAN §4 / HARNESS-OVERRIDES "Packaging surfaces": the framework adapter is a STRETCH, not a ✅ floor
 // (meta-harnesses-only; acorn ships a thin tool-export at most). This is exactly that: a single, honest
 // re-export surface so a sibling Energy employee (turbo, the hub) can consume acorn's deterministic
-// expertise as plain functions — `import { lintRls, safeMigration } from "acorn/toolkit"` — without
+// expertise as plain functions — `import { lintRls, safeMigration } from "acorn/dist/toolkit/export.js"` — without
 // shelling out to the CLI or speaking JSON-RPC to the MCP server.
 //
 // These are the SAME functions the CLI (B2) and the MCP server (C1) call — one source of truth, no LLM in

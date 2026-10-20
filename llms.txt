@@ -90,7 +90,7 @@ Wiring: [.mcp.json](./.mcp.json) — the `acorn` server straight from GitHub (`n
 ## Plugin + toolkit
 - [.claude-plugin/plugin.json](./.claude-plugin/plugin.json) + [marketplace.json](./.claude-plugin/marketplace.json): the Claude Code plugin (5 skills, 2 sub-agents, the push-guard hook, the MCP server). Install: `/plugin marketplace add naman10parikh/acorn`, then `/plugin install acorn@acorn`.
 - [.claude-plugin/manifest.json](./.claude-plugin/manifest.json): the older full bundle description (CLI + MCP + 5 skills + hooks + 2 sub-agents). It surfaces all 12 MCP tools above — e.g. `acorn_schema`, `acorn_rls_lint`, `acorn_migration_safe`.
-- [src/toolkit/export.ts](./src/toolkit/export.ts): the thin `@energy/agent-toolkit` tool-export — a sibling employee can `import { lintRls, safeMigration } from "acorn/toolkit"` instead of shelling out to the CLI or calling `acorn_rls_lint` over JSON-RPC.
+- [src/toolkit/export.ts](./src/toolkit/export.ts): the thin `@energy/agent-toolkit` tool-export — a sibling employee can `import { lintRls, safeMigration } from "acorn/dist/toolkit/export.js"` (the package has no `acorn/toolkit` export yet) instead of shelling out to the CLI or calling `acorn_rls_lint` over JSON-RPC.
 
 ## The acceptance test (the bar)
 `acorn schema "a multi-tenant helpdesk: orgs have members; members file tickets; tickets have messages" --provider supabase --apply --verify-rls`

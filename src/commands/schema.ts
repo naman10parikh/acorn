@@ -15,7 +15,33 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runSchemaFlow, type Provider } from "../dispatch/schema-flow.js";
 import { resolveSandbox, applyAndVerify, type SandboxProvider } from "../sandbox/branch-lifecycle.js";
-import { applySql, runRlsAsRole } from "../sandbox/provision.js";
+import { applySql, runRlsAsRole, type SqlRunResult } from "../sandbox/provision.js";
+
+/** A table the --verify-rls anon probe may read: `table` or `schema.table`, plain identifiers only (no SQL). */
+const PROBE_TABLE = /^[A-Za-z_][A-Za-z0-9_$]*(\.[A-Za-z_][A-Za-z0-9_$]*)?$/;
+
+/**
+ * The --verify-rls verdict on an anon `SELECT count(*)` of `table` (CVE-2025-48757 defense). Exit 0 when anon
+ * is denied the table (no GRANT, the stronger guarantee) or reads 0 rows. Exit 1 when anon reads any row.
+ * Exit 2 when the probe could not run (e.g. no such table), because then nothing was verified.
+ */
+export function anonProbeVerdict(table: string, anon: SqlRunResult): { exitCode: 0 | 1 | 2; line: string } {
+  if (!anon.ok) {
+    if (/permission denied/i.test(anon.stderr)) {
+      return { exitCode: 0, line: `RLS verified on ${table}: anon is denied (no GRANT to the public key), probed as anon, not the SQL Editor.` };
+    }
+    const reason = anon.stderr.trim().split("\n")[0] || `psql exit ${anon.code}`;
+    return { exitCode: 2, line: `RLS not verified on ${table}: the anon probe failed: ${reason}` };
+  }
+  const rows = /^[ \t]*(\d+)[ \t]*$/m.exec(anon.stdout)?.[1];
+  if (rows === "0") {
+    return { exitCode: 0, line: `RLS verified on ${table}: anon SELECT returns 0 rows, probed as anon, not the SQL Editor.` };
+  }
+  if (rows === undefined) {
+    return { exitCode: 2, line: `RLS not verified on ${table}: could not read a row count from the anon probe.` };
+  }
+  return { exitCode: 1, line: `RLS FAILED on ${table}: anon can read ${rows} row(s). Fix its policies or GRANTs.` };
+}
 
 /**
  * Make the generated migration safe to re-apply (idempotent), so the acceptance test's SECOND `acorn schema
@@ -43,10 +69,11 @@ export function schemaCommand(): Command {
     .argument("<brief>", "a one-line domain brief, e.g. 'a multi-tenant helpdesk: orgs have members; members file tickets'")
     .option("--provider <p>", "supabase | neon | postgres", "supabase")
     .option("--apply", "apply the generated migrations to a fresh ephemeral DB")
-    .option("--verify-rls", "run the RLS tests as the un-privileged role after applying")
+    .option("--verify-rls", "after applying, read a table as anon; exit 1 if anon sees rows")
+    .option("--rls-table <table>", "the table --verify-rls reads as anon", "public.tickets")
     .option("--dry-run", "print the ordered routing plan without applying")
     .description("THE acceptance command: brief → tenancy + migrations + RLS + typed schema, applied to a fresh ephemeral DB, RLS verified by tests")
-    .action((brief: string, opts: { provider: string; apply?: boolean; verifyRls?: boolean; dryRun?: boolean }) => {
+    .action((brief: string, opts: { provider: string; apply?: boolean; verifyRls?: boolean; rlsTable: string; dryRun?: boolean }) => {
       // An empty/whitespace-only brief is a user error — reject it cleanly instead of fabricating a
       // placeholder schema (which silently invents a `records` table). acorn needs a real domain brief.
       if (brief.trim().length === 0) {
@@ -54,6 +81,11 @@ export function schemaCommand(): Command {
           "acorn schema: empty brief — give a one-line domain description, e.g.\n" +
             "  acorn schema \"a multi-tenant helpdesk: orgs have members; members file tickets\"\n",
         );
+        process.exitCode = 2;
+        return;
+      }
+      if (!PROBE_TABLE.test(opts.rlsTable)) {
+        process.stderr.write(`acorn schema: --rls-table must be a plain table name such as public.tickets (got "${opts.rlsTable}").\n`);
         process.exitCode = 2;
         return;
       }
@@ -104,37 +136,29 @@ export function schemaCommand(): Command {
             process.stdout.write(chalk.green(`  ✓ no migrations to apply — ${migId} already in the ledger (idempotent re-run, 0 collisions).\n`));
             applyExit = 0;
           } else {
-            const av = applyAndVerify(outcome, dbUrl, makeIdempotent(combinedSql), {
-              verifyRls: opts.verifyRls === true,
-              rlsProbe: "SELECT 1;",
-            });
+            // No authenticated probe here: a bare `SELECT 1` as authenticated proves nothing about isolation.
+            // The RLS evidence is the anon probe below.
+            const av = applyAndVerify(outcome, dbUrl, makeIdempotent(combinedSql));
             if (av.applied) {
               // Record the migration id in the ledger so the next --apply is a no-op.
               applySql(dbUrl, `INSERT INTO public.__acorn_migrations (id) VALUES ('${migId}') ON CONFLICT DO NOTHING;`);
               process.stdout.write(chalk.green(`  ✓ ${av.detail} (ledger id ${migId})\n`));
-              // --verify-rls: run a real un-privileged-role probe as the acceptance evidence (anon sees no
-              // tenant data). TWO outcomes both satisfy the CVE-2025-48757 defense: (a) anon SELECT returns
-              // 0 rows (RLS-on, table reachable but every row denied), OR (b) "permission denied" — anon has
-              // no GRANT on the generated table at all (a STRONGER guarantee: the table is unreachable, not
-              // just empty). The generated schema GRANTs nothing to anon, so the real acceptance run hits (b);
-              // both are a pass. Only "anon saw rows" (anon.ok && a non-zero count) is the actual failure.
-              if (opts.verifyRls) {
-                const anon = runRlsAsRole(dbUrl, "anon", "SELECT count(*) AS n FROM public.tickets");
-                const anonZero = anon.ok && /\b0\b/.test(anon.stdout);
-                const anonDenied = !anon.ok && /permission denied/i.test(anon.stderr);
-                process.stdout.write(
-                  anonZero
-                    ? chalk.green("  ✓ RLS verified: anon SELECT on a tenant table returns 0 rows (un-privileged role, not the SQL Editor).\n")
-                    : anonDenied
-                      ? chalk.green("  ✓ RLS verified: anon is denied on a tenant table (no GRANT to the public key — CVE-2025-48757 defense; un-privileged role, not the SQL Editor).\n")
-                      : chalk.yellow(`  ! RLS verify probe: ${anon.ok ? "anon saw rows — review the policy" : anon.stderr.trim()}\n`),
-                );
-              }
               applyExit = 0;
             } else {
               process.stdout.write(chalk.yellow(`  ! ${av.detail}\n`));
               applyExit = 2;
             }
+          }
+          // --verify-rls: read --rls-table as anon, on a fresh apply and on an idempotent re-run alike. A
+          // denied read or 0 rows passes; rows seen fails the run (exit 1); a probe that cannot run exits 2.
+          if (opts.verifyRls && applyExit === 0) {
+            const verdict = anonProbeVerdict(
+              opts.rlsTable,
+              runRlsAsRole(dbUrl, "anon", `SELECT count(*) AS n FROM ${opts.rlsTable}`),
+            );
+            const paint = verdict.exitCode === 0 ? chalk.green : verdict.exitCode === 1 ? chalk.red : chalk.yellow;
+            process.stdout.write(paint(`  ${verdict.exitCode === 0 ? "✓" : verdict.exitCode === 1 ? "✗" : "!"} ${verdict.line}\n`));
+            applyExit = verdict.exitCode;
           }
         } else {
           process.stdout.write(chalk.yellow(`  ! apply deferred — ${outcome.guard.reason} (not a fake apply).\n`));
@@ -149,7 +173,8 @@ export function schemaCommand(): Command {
       }
 
       // Honest exit: a real apply → 0; --apply with no branch DB → 2 (deferred, not a clean apply); a failed
-      // self-check → 1. The dry-run/design-only path succeeds when the deterministic self-check passed.
+      // self-check → 1; --verify-rls with anon reading rows → 1, or with a probe that could not run → 2.
+      // The dry-run/design-only path succeeds when the deterministic self-check passed.
       if (applyExit !== null) process.exitCode = applyExit;
       else if (opts.apply && !result.applied) process.exitCode = 2;
       else if (!result.selfCheckPassed) process.exitCode = 1;

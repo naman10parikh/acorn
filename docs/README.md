@@ -59,7 +59,7 @@ The main flow turns a one-line brief into tables and policies:
 9. Apply: the command writes `migrations/0001_acorn_schema.sql`. `resolveSandbox` in [src/sandbox/branch-lifecycle.ts](../src/sandbox/branch-lifecycle.ts) picks the target database. With no ready database, the apply is deferred and the exit code is 2.
 10. Guard: `prodGuard` in [src/sandbox/provision.ts](../src/sandbox/provision.ts) allows only local or branch databases, or one you mark as dev with `ACORN_DEV_DB=1`. Any URL with a production marker is refused.
 11. Ledger: the SQL runs through `psql`, and a hash of it goes into a table named `__acorn_migrations`. A second run then prints "no migrations to apply".
-12. Verify: the command counts rows in `public.tickets` as the `anon` role. Zero rows or "permission denied" both pass, and any visible row prints a warning.
+12. Verify: the command counts rows as the `anon` role in `public.tickets`, or in the table given by `--rls-table`. It does this on a re-run too, and the result line names the table. Zero rows or "permission denied" pass. Any visible row fails the run with exit code 1, and a probe that cannot run exits with code 2.
 
 ## Extending it
 

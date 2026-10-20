@@ -35,7 +35,7 @@ tier_name() {
 
 tier_env_model() {
   case "$1" in
-    1) echo "claude-fable-5[1m]" ;; # CP123 (2026-06-10): tier-1 pinned to Fable 5 1M for the employee-fleet mission; revert to "opus" at CP123 close
+    1) echo "opus" ;; # the alias, never an ID: it upgrades itself (chairman, 2026-09-22); never Fable
     2) echo "opusplan" ;;
     3) echo "sonnet" ;;
     4) echo "sonnet" ;;
@@ -53,7 +53,7 @@ tier_env_effort() {
 
 tier_env_subagent() {
   case "$1" in
-    1) echo "claude-opus-4-8[1m]" ;; # CP123: subagent default = Opus 4.8 1M (was "" inherit); revert at CP123 close
+    1) echo "opus" ;; # the alias, never an ID: it upgrades itself (chairman, 2026-09-22); never Fable
     2) echo "sonnet" ;; # Sonnet subagents
     3) echo "haiku" ;;  # Haiku subagents
     4) echo "haiku" ;;  # Haiku subagents

@@ -208,14 +208,11 @@ with open("$SETTINGS_FILE", "r") as f:
 
 env = settings.get("env", {})
 
-# Set model routing env vars
-env["ANTHROPIC_MODEL"] = "$model"
-env["CLAUDE_CODE_EFFORT_LEVEL"] = "$effort"
-
-if "$subagent":
-    env["CLAUDE_CODE_SUBAGENT_MODEL"] = "$subagent"
-elif "CLAUDE_CODE_SUBAGENT_MODEL" in env:
-    del env["CLAUDE_CODE_SUBAGENT_MODEL"]
+# Never pin a model and never lower effort (chairman, 2026-09-22). Claude Code's default is the
+# recommended frontier model and it upgrades itself; the ID this used to write froze every session.
+# The budget tiers are disabled, so apply only cleans up.
+env.pop("ANTHROPIC_MODEL", None)
+env.pop("CLAUDE_CODE_SUBAGENT_MODEL", None)
 
 settings["env"] = env
 
@@ -223,7 +220,7 @@ with open("$SETTINGS_FILE", "w") as f:
     json.dump(settings, f, indent=2)
     f.write("\n")
 
-print("Settings updated: model=$model, effort=$effort, subagent=${subagent:-inherit}")
+print("Model left to the Claude Code default (no pin written); effort untouched.")
 PYEOF
 }
 

@@ -14,6 +14,9 @@ permissions:
 jobs:
   rsi:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - name: Engine guard
@@ -53,3 +56,28 @@ jobs:
           path: .rsi/proposed/*.json
           if-no-files-found: ignore
           retention-days: 30
+      - name: Open or update the proposal issue for a person to review
+        if: always() && hashFiles('.rsi/proposed/*.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          files=(.rsi/proposed/*.json)
+          proposal=${files[${#files[@]}-1]}
+          [ -s "$proposal" ] || { echo "The proposal file is empty, so no issue."; exit 0; }
+          jq -e '.proposed_diff | startswith("No drift this cycle") | not' "$proposal" > /dev/null \
+            || { echo "The loop proposed nothing this run, so no issue."; exit 0; }
+          gh label create proposal --color 2f5d8a --description "A change the self-improvement loop proposes for a person to review" --force
+          {
+            echo "Written by the scheduled self-improvement loop on $(date -u '+%Y-%m-%d %H:%M UTC'). It proposes; a person decides. The loop never merges."
+            echo
+            echo '````json'
+            cat "$proposal"
+            echo '````'
+          } > "$RUNNER_TEMP/proposal-issue.md"
+          number=$(gh issue list --label proposal --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file "$RUNNER_TEMP/proposal-issue.md"
+          else
+            gh issue create --title "Acorn: proposal from the self-improvement loop" --label proposal --body-file "$RUNNER_TEMP/proposal-issue.md"
+          fi

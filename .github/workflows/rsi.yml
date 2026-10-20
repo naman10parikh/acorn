@@ -41,4 +41,15 @@ jobs:
           pnpm build
       - name: RSI deterministic heartbeat (red on a real eval regression)
         if: steps.guard.outputs.armed == 'true'
-        run: node workflows/rsi.workflow.js
+        run: |
+          set -o pipefail
+          mkdir -p .rsi/proposed
+          node workflows/rsi.workflow.js | tee ".rsi/proposed/acorn-rsi-$(date -u +%F).json"
+      - name: Keep the proposal for review (never applied or merged by the loop)
+        if: always() && steps.guard.outputs.armed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsi-proposal
+          path: .rsi/proposed/*.json
+          if-no-files-found: ignore
+          retention-days: 30

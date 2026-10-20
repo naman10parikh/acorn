@@ -33,7 +33,7 @@ fi
 
 # Check 2: Does a corresponding vault note exist?
 BASENAME=$(basename "$FILE_PATH" .md)
-VAULT_DIR="~/energy/vault"
+VAULT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}/vault"
 if [[ -d "$VAULT_DIR" ]]; then
   VAULT_MATCH=$(grep -rl "$BASENAME" "$VAULT_DIR" --include="*.md" 2>/dev/null | head -1)
   if [[ -z "$VAULT_MATCH" ]]; then

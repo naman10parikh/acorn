@@ -52,8 +52,10 @@ acorn --help | --version
 
 ## How to invoke — the MCP server (server name `acorn`, 12 tools, stdio)
 
-Wired in `.mcp.json` (`node dist/mcp/server.js`, env-ref keys only). All over stdio; rows are untrusted;
-inspect-style tools use a read-only branch/dev role.
+Wired in `.mcp.json` straight from GitHub (`npx -y -p github:naman10parikh/acorn acorn-mcp`, no secret); the
+local build (`node ./dist/mcp/server.js`, with `DATABASE_URL` for the live-database tools) lives in `.mcp.dev.json`.
+All over stdio; rows are untrusted; inspect-style tools use a read-only branch/dev role. Pass SQL text inline: the
+server reads a path only when it sits inside its own package.
 
 | Tool | Args (sketch) | Returns |
 | --- | --- | --- |

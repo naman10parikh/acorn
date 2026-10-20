@@ -15,7 +15,7 @@ jobs:
       - name: Harness skeleton present
         run: |
           set -e
-          for f in identity/SOUL.md brain HARNESS-OVERRIDES.md MASTER-TODOS.md IMPLEMENTATION-NOTES.md dsip.json; do
+          for f in identity/SOUL.md brain AGENTS.md llms.txt .claude-plugin/plugin.json dsip.json; do
             [ -e "$f" ] || { echo "MISSING: $f"; exit 1; }
           done
           echo "harness skeleton OK"

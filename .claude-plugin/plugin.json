@@ -1,0 +1,35 @@
+{
+  "name": "acorn",
+  "version": "0.1.0",
+  "description": "Designs Postgres schemas, makes migrations safe to run and tests row-level security so tenants stay apart.",
+  "author": {
+    "name": "Naman Parikh",
+    "url": "https://github.com/naman10parikh"
+  },
+  "homepage": "https://github.com/naman10parikh/acorn",
+  "repository": "https://github.com/naman10parikh/acorn",
+  "license": "MIT",
+  "keywords": [
+    "agent-native",
+    "self-improving",
+    "agent-employee",
+    "claude-code",
+    "postgres",
+    "supabase",
+    "rls",
+    "migrations",
+    "pgvector"
+  ],
+  "skills": [
+    "./skills/design-multitenant-schema",
+    "./skills/harden-rls",
+    "./skills/zero-downtime-migration",
+    "./skills/pgvector-rag",
+    "./skills/agent-db-safety"
+  ],
+  "agents": [
+    "./.claude/agents/rls-auditor.md",
+    "./.claude/agents/migration-safety-reviewer.md"
+  ],
+  "mcpServers": "./.mcp.json"
+}

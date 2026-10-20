@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-~/energy}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 ANCHOR_FILE="$PROJECT_DIR/.claude/anchor-state.md"
 TODAY=$(date '+%Y-%m-%d')
 DAILY_FILE="$PROJECT_DIR/memory/daily/$TODAY.md"

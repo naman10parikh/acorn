@@ -75,6 +75,13 @@ acorn is a **tool-employee** (not a messaging channel). Reachable via **CLI** (`
 **MCP** (server `acorn`, 12 tools, stdio), and the **local cockpit** (`bash scripts/serve.sh`, chairman's
 eyes only). Identity reachability (a phone/email/handle) is **N/A** for this vertical.
 
+The root `.mcp.json` is what a stranger and the plugin load: acorn's own server, started from GitHub with
+`npx -y -p github:naman10parikh/acorn acorn-mcp`, plus context7; neither needs a secret. To work on acorn itself,
+`claude --mcp-config .mcp.dev.json` also loads the local build (`acorn-local`, `node ./dist/mcp/server.js` after
+`pnpm build`, which reads `DATABASE_URL` for the live-database tools), GitHub (needs `GITHUB_PERSONAL_ACCESS_TOKEN`),
+memory (`memory/MEMORY.md`) and obsidian (`brain/`). Started from GitHub, the server reads only files inside its own
+package, so callers pass SQL text inline, not a path into their project.
+
 ## Memory & brain
 `identity/MEMORY.md` is the ≤2,000-token bootstrap. The queryable expertise layer is **`brain/`** (six
 artifacts: EXPERTISE-MAP, OPINIONS, KNOWN-PITFALLS, BATTLE-TESTED-SCENARIOS, GAPS-AND-DISPUTES,
@@ -82,11 +89,13 @@ TOOL-MATRIX + MOC) — search it with `acorn brain search "<q>"` (BM25). The `.c
 glob-loaded every session (the inherited Energy rules + the Karpathy discipline).
 
 ## Self-improvement (RSI)
-`dsip.json` declares the Darwin loop (`levels:["agent"]`, eval-gated, `noSelfGrading`, component+repo
-git snapback). The **deterministic half** ($0, tokenless) re-verifies the tool-matrix version-gates
-against live changelogs, re-runs the eval pyramid, flags RLS-coverage drift, snaps back on regression —
-runs nightly on `rsi.yml`'s `schedule:`. The **Claude half** lights only when `CLAUDE_CODE_OAUTH_TOKEN`
-is set (deferred). Minimum L1 (evals gate merges) before shipping.
+`dsip.json` declares the Darwin loop (`levels:["agent"]`, eval-gated, `noSelfGrading`, git snapback at skill
+and employee granularity; Darwin's check reports L2). The **deterministic half** ($0, tokenless) runs nightly on
+`rsi.yml`'s `schedule:`: it reports the tool-matrix version-gate snapshot, re-runs the L1 eval
+(`eval/eval.py --l1-only`), checks that the RLS lint runs, and flags brain artifacts older than the newest
+version-gate event. The run keeps its proposal JSON as an artifact; it never applies or merges anything, and it
+goes red on a real L1 regression so a person snaps back with git. The live changelog diff and the **Claude half**
+light only when `CLAUDE_CODE_OAUTH_TOKEN` is set (deferred).
 
 ## Commit convention
 `feat(skill):` · `feat(employee):` · `feat(company):` — so git snap-back works at all 3 granularities.

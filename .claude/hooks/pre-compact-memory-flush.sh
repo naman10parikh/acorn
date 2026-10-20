@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-~/energy}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 MEMORY_DIR="$PROJECT_DIR/memory"
 DAILY_DIR="$MEMORY_DIR/daily"
 BACKUP_DIR="$PROJECT_DIR/.claude/backups"

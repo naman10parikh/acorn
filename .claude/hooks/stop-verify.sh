@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-~/energy}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 COUNTER_FILE="/tmp/claude-stop-verify-counter"
 MAX_FIRES=3  # Total fires before allowing stop — prevents infinite loops
 

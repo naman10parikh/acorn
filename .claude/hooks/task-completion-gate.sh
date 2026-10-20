@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-~/energy}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 TASK_FILE="$PROJECT_DIR/.claude/active-task.md"
 COUNTER_FILE="/tmp/claude-task-gate-counter"
 MAX_FIRES=3  # Total fires before allowing stop — prevents infinite loops

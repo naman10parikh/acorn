@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-~/energy}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 STATE_FILE="$PROJECT_DIR/.claude/budget-state.json"
 SETTINGS_FILE="$PROJECT_DIR/.claude/settings.local.json"
 

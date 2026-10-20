@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-~/energy}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 TODAY=$(date '+%Y-%m-%d')
 DAILY_FILE="$PROJECT_DIR/memory/daily/$TODAY.md"
 

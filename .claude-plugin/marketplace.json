@@ -1,0 +1,14 @@
+{
+  "name": "acorn",
+  "owner": {
+    "name": "Naman Parikh",
+    "url": "https://github.com/naman10parikh"
+  },
+  "plugins": [
+    {
+      "name": "acorn",
+      "source": "./",
+      "description": "Designs Postgres schemas, makes migrations safe to run and tests row-level security so tenants stay apart."
+    }
+  ]
+}

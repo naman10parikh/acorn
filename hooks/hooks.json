@@ -1,0 +1,17 @@
+{
+  "description": "acorn's plugin hook. Before a Bash command, refuse `drizzle-kit push` unless DATABASE_URL is plainly a local, dev or branch database (push can turn a rename into DROP plus ADD and lose data). Every other command passes untouched.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/block-prod-push.sh\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

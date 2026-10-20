@@ -4,12 +4,16 @@
   "description": "The database employee — schema, migrations, RLS, pgvector, and tenant isolation that survive production.",
   "type": "module",
   "bin": {
-    "acorn": "./dist/index.js"
+    "acorn": "./dist/index.js",
+    "acorn-mcp": "./dist/mcp/server.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist/",
+    "brain/",
+    "skills/",
+    "AGENTS.md",
     "README.md",
     "LICENSE"
   ],
@@ -33,6 +37,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
+    "prepare": "npm run build",
     "prepublishOnly": "pnpm build && pnpm test"
   },
   "dependencies": {

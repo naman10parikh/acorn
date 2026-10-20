@@ -1,0 +1,17 @@
+{
+  "name": "acorn",
+  "version": "0.1.0",
+  "description": "Designs Postgres schemas, makes migrations safe to run and tests row-level security so tenants stay apart.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "acorn": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "-p",
+        "github:naman10parikh/acorn",
+        "acorn-mcp"
+      ]
+    }
+  }
+}

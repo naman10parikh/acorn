@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-~/energy}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 AUDIT_FILE="$PROJECT_DIR/.claude/audit.jsonl"
 TERMINAL_CONTEXT="${CLAUDE_TERMINAL_CONTEXT:-unknown}"
 TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')

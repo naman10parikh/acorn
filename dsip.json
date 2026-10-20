@@ -25,8 +25,8 @@
   },
   "snapback": {
     "granularity": [
-      "component",
-      "repo"
+      "skill",
+      "employee"
     ],
     "vcs": "git"
   },

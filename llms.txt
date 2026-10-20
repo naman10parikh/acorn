@@ -7,7 +7,7 @@
 
 This is the agent-readable map of acorn's surfaces. Drive acorn via the **CLI** (`acorn --help`) or its **MCP
 server** (server name `acorn`, 12 tools, stdio). Read `AGENTS.md` first for how to invoke everything and the
-hard rules. Paths are repo-relative to `~/acorn`.
+hard rules. Paths are relative to the repository root.
 
 ## Boundary (LOCKED — read before invoking)
 acorn owns **schema / migrations / RLS / the data layer ONLY**. It emits the migration, the RLS policy, the
@@ -18,7 +18,7 @@ states opinionated, Energy-default-biased stances and names the disputes it deli
 ## Start here
 - [AGENTS.md](./AGENTS.md): What acorn does, how to invoke its CLI + every MCP tool, the boundary, the 12 house rules, and the REFUSES list.
 - [CLAUDE.md](./CLAUDE.md): Claude Code operating doc — the FOUR THINGS, the currency-rule, test RLS as the un-privileged role, never push to prod.
-- [PLAN.md](./PLAN.md): The build contract. [MASTER-TODOS.md](./MASTER-TODOS.md): the task board. [HARNESS-OVERRIDES.md](./HARNESS-OVERRIDES.md): the per-component DONE bar.
+- [README.md](./README.md): What acorn is, how to add it to any coding agent in one step, and the quick start.
 
 ## Identity
 - [identity/SOUL.md](./identity/SOUL.md): Who acorn is — mission, personality, boundaries (the seed/oak metaphor: the schema is the seed of the product).
@@ -53,7 +53,7 @@ Each verb is also an MCP tool (1:1). Every command exits 0 on success / non-zero
 - `acorn_doctor` — {database_url?} → {pg_major, has_uuidv7, pgvector_version, rls_coverage_pct}
 - `acorn_brain_search` — {query} → {hits:[{file, score, excerpt}]}
 
-Wiring: [.mcp.json](./.mcp.json) — the `acorn` server (`node dist/mcp/server.js`) + env-ref keys only (no live keys).
+Wiring: [.mcp.json](./.mcp.json) — the `acorn` server straight from GitHub (`npx -y -p github:naman10parikh/acorn acorn-mcp`) plus context7, no secret. [.mcp.dev.json](./.mcp.dev.json) — the local build (`node ./dist/mcp/server.js`, with `DATABASE_URL`) and the developer servers.
 
 ## Skills (progressive-disclosure procedures, each citing its brain source)
 - [design-multitenant-schema](./skills/design-multitenant-schema/SKILL.md): the tenancy decision tree + column house-style.
@@ -79,6 +79,7 @@ Wiring: [.mcp.json](./.mcp.json) — the `acorn` server (`node dist/mcp/server.j
 - [.claude/settings.json](./.claude/settings.json): wiring (PreToolUse · Bash → block `drizzle-kit push` vs a non-dev URL).
 - [hooks/block-prod-push.sh](./hooks/block-prod-push.sh): refuses a `drizzle-kit push` against a prod/unset DATABASE_URL.
 - [hooks/lint-staged-sql.sh](./hooks/lint-staged-sql.sh): runs `acorn migration lint` on staged `*.sql` (flags a bare `CREATE INDEX`, etc.).
+- [hooks/hooks.json](./hooks/hooks.json): the same push guard, shipped to plugin users.
 
 ## Evals, RSI, observability
 - [eval/eval.py](./eval/eval.py): L1 (per house rule) + the ≥10 golden tasks G1-G15 (L2) + Pass^k. [eval/judge.py](./eval/judge.py): the L3 migration-trajectory judge (κ self-test).
@@ -87,7 +88,8 @@ Wiring: [.mcp.json](./.mcp.json) — the `acorn` server (`node dist/mcp/server.j
 - [scripts/log-run.mjs](./scripts/log-run.mjs) → [logs/runs.jsonl](./logs/runs.jsonl): every run with model + duration + the **DB verdict** (migration safety class, RLS-coverage %).
 
 ## Plugin + toolkit
-- [.claude-plugin/manifest.json](./.claude-plugin/manifest.json): the Claude Code plugin bundle (CLI + MCP + 5 skills + hooks + 2 sub-agents). It surfaces all 12 MCP tools above — e.g. `acorn_schema`, `acorn_rls_lint`, `acorn_migration_safe`.
+- [.claude-plugin/plugin.json](./.claude-plugin/plugin.json) + [marketplace.json](./.claude-plugin/marketplace.json): the Claude Code plugin (5 skills, 2 sub-agents, the push-guard hook, the MCP server). Install: `/plugin marketplace add naman10parikh/acorn`, then `/plugin install acorn@acorn`.
+- [.claude-plugin/manifest.json](./.claude-plugin/manifest.json): the older full bundle description (CLI + MCP + 5 skills + hooks + 2 sub-agents). It surfaces all 12 MCP tools above — e.g. `acorn_schema`, `acorn_rls_lint`, `acorn_migration_safe`.
 - [src/toolkit/export.ts](./src/toolkit/export.ts): the thin `@energy/agent-toolkit` tool-export — a sibling employee can `import { lintRls, safeMigration } from "acorn/toolkit"` instead of shelling out to the CLI or calling `acorn_rls_lint` over JSON-RPC.
 
 ## The acceptance test (the bar)

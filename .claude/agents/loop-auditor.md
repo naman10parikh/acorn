@@ -1,5 +1,5 @@
 ---
-name: agent-auditor
+name: loop-auditor
 description: Audits agent definitions (currently .energy format) for completeness, token efficiency, and harness quality.
 model: sonnet
 allowed-tools: ["Read", "Glob", "Grep"]

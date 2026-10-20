@@ -19,6 +19,8 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the brain-freshness check reads each file's last commit
       - name: Engine guard
         id: guard
         run: |

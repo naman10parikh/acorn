@@ -19,7 +19,7 @@
  *   2. eval-pyramid health   — run `python eval/eval.py --l1-only` when E1 has shipped it; a non-zero exit
  *                              is a REGRESSION → verdict.regressed = true (the git snapback trigger).
  *   3. RLS-coverage drift    — re-lint a house schema with the built `acorn rls lint`; a new error → diff.
- *   4. brain freshness       — flag a brain artifact whose mtime predates the newest version-gate event.
+ *   4. brain freshness       — flag a brain artifact whose last commit predates the newest version-gate event.
  *
  * Run: `node workflows/rsi.workflow.js --dry-run`  → prints {proposed_diff, eval_verdict} JSON, exit 0.
  *      `node workflows/rsi.workflow.js`            → same checks; non-zero exit if the eval pyramid regressed
@@ -28,7 +28,7 @@
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -99,15 +99,25 @@ function rlsCoverageDrift() {
   };
 }
 
+/**
+ * When a file last changed, from its last commit (ms). A fresh checkout stamps every file with "now", so the
+ * file's modified time would never look stale in CI; an uncommitted file falls back to that time.
+ */
+function lastChanged(p) {
+  const r = spawnSync("git", ["log", "-1", "--format=%ct", "--", p], { cwd: REPO, encoding: "utf8" });
+  const secs = Number.parseInt((r.stdout ?? "").trim(), 10);
+  return Number.isFinite(secs) ? secs * 1000 : statSync(p).mtimeMs;
+}
+
 /** Dimension 4 — brain freshness. Flag a brain artifact older than the newest version-gate event. */
-function brainFreshness() {
+export function brainFreshness() {
   const newestGateEvent = Date.parse("2026-03-03"); // Drizzle→PlanetScale, the latest of the 5 inflection dates.
   const brainDir = join(REPO, "brain");
   const artifacts = ["OPINIONS.md", "KNOWN-PITFALLS.md", "TOOL-MATRIX.md", "BATTLE-TESTED-SCENARIOS.md"];
   const stale = [];
   for (const f of artifacts) {
     const p = join(brainDir, f);
-    if (existsSync(p) && statSync(p).mtimeMs < newestGateEvent) stale.push(f);
+    if (existsSync(p) && lastChanged(p) < newestGateEvent) stale.push(f);
   }
   return {
     stale,
@@ -171,4 +181,5 @@ function main() {
   if (!DRY_RUN && eval_verdict === "regressed") process.exitCode = 1;
 }
 
-main();
+// Run only when executed (node workflows/rsi.workflow.js), so a test can import brainFreshness.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

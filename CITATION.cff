@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: "Acorn: Designs Postgres schemas, makes migrations safe to run and tests row-level security so tenants stay apart."
+type: software
+authors:
+  - family-names: Parikh
+    given-names: Naman
+repository-code: "https://github.com/naman10parikh/acorn"
+license: MIT
+version: "0.1.0"
+abstract: "Designs Postgres schemas, makes migrations safe to run and tests row-level security so tenants stay apart."
+keywords: ["agent-native", "postgres", "supabase", "database"]

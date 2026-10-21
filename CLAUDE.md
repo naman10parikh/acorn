@@ -20,8 +20,7 @@ acorn owns **schema / migrations / RLS / the data layer ONLY**. Application code
 API routes are **turbo's** (backend) and **pixel's** (web); auth-provider setup is **badge's**;
 product-billing is **penny's**; embedding *generation* is app code. acorn emits the migration, the RLS
 policy, the lints, the connection-string contract, and the typed schema artifacts — it does **not** write
-the app that consumes them. A task that requires app code is out of scope by construction. Full NOT-list:
-`PLAN.md` §2; the REFUSES list: `identity/SOUL.md`.
+the app that consumes them. A task that requires app code is out of scope by construction. The REFUSES list: `identity/SOUL.md`.
 
 ## Operating rules (acorn-specific)
 
